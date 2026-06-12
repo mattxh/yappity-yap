@@ -1,0 +1,16 @@
+{
+  "provider": "openai",
+  "providers": {
+    "openai": { "api_key": "", "model": "gpt-4o-mini-transcribe" },
+    "groq":   { "api_key": "", "model": "whisper-large-v3-turbo" }
+  },
+  "hotkey": "ctrl+windows",
+  "tap_threshold_ms": 400,
+  "max_recording_s": 300,
+  "language": "auto",
+  "ui_language": "en",
+  "input_device": null,
+  "beeps": true,
+  "show_overlay": true,
+  "append_space": true
+}

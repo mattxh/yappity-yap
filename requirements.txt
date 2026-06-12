@@ -1,0 +1,7 @@
+requests>=2.32
+sounddevice>=0.5
+keyboard>=0.13.5
+pystray>=0.19
+Pillow>=10.0
+pyperclip>=1.9
+opencc-python-reimplemented>=0.1.7

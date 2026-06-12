@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "PowerShell(git init)",
-      "PowerShell(git add -A)"
+      "PowerShell(git add -A)",
+      "PowerShell(git add docs/superpowers/plans/2026-06-12-voice-to-text-app.md)",
+      "PowerShell(python -m pip install -r requirements-dev.txt 2>&1)",
+      "PowerShell(python -c \"import requests, sounddevice, keyboard, pystray, PIL, pyperclip, opencc, tkinter, winsound; print\\('all imports OK'\\)\")",
+      "PowerShell(python -m pytest; \"exit=$LASTEXITCODE\")"
     ]
   }
 }
