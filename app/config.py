@@ -15,6 +15,7 @@ DEFAULTS = {
     "providers": {
         "openai": {"api_key": "", "model": "gpt-4o-transcribe"},
         "groq": {"api_key": "", "model": "whisper-large-v3-turbo"},
+        "elevenlabs": {"api_key": "", "model": "scribe_v1"},
     },
     "hotkey": "ctrl+windows",
     "tap_threshold_ms": 400,
@@ -33,7 +34,11 @@ DEFAULTS = {
     },
 }
 
-ENV_KEYS = {"openai": "OPENAI_API_KEY", "groq": "GROQ_API_KEY"}
+ENV_KEYS = {
+    "openai": "OPENAI_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "elevenlabs": "ELEVENLABS_API_KEY",
+}
 
 
 def _deep_merge(base: dict, override: dict) -> dict:

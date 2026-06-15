@@ -1,9 +1,14 @@
 """Provider factory."""
 from ..config import get_api_key
+from .elevenlabs_provider import ElevenLabsProvider
 from .groq_provider import GroqProvider
 from .openai_provider import OpenAIProvider
 
-_PROVIDERS = {"openai": OpenAIProvider, "groq": GroqProvider}
+_PROVIDERS = {
+    "openai": OpenAIProvider,
+    "groq": GroqProvider,
+    "elevenlabs": ElevenLabsProvider,
+}
 
 
 def create_provider(cfg: dict):
