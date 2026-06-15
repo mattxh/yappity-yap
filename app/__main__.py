@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from . import config as config_mod
-from . import history, inject, postprocess
+from . import cleanup, history, inject, postprocess
 from .config import get_api_key
 from .hotkey import ChordMachine, KeyboardHookAdapter
 from .i18n import tr
@@ -144,10 +144,11 @@ class App:
             log.warning("could not save last_recording.wav")
         lang = self.cfg.get("language", "auto")
         language = None if lang == "auto" else lang
-        prompt = ZH_PROMPT if lang == "zh" else None
+        prompt = self._build_transcription_prompt(lang)
         text = self._transcribe_with_retry(wav, language, prompt)
         if text is None:
             return  # already notified
+        text = self._maybe_cleanup(text, lang)
         text = postprocess.process(text, self.cfg.get("append_space", True))
         if not text.strip():
             self.notifier.toast(self.t("err_empty"))
@@ -169,6 +170,33 @@ class App:
                 beep("error", self.cfg["beeps"])
                 self.notifier.toast(self.t("err_api", error=str(e)))
                 return None
+
+    def _build_transcription_prompt(self, lang):
+        parts = []
+        if lang == "zh":
+            parts.append(ZH_PROMPT)
+        terms = self.cfg.get("cleanup", {}).get("dictionary", [])
+        if terms:
+            parts.append("Vocabulary: " + ", ".join(terms) + ".")
+        return " ".join(parts) if parts else None
+
+    def _maybe_cleanup(self, text, lang):
+        cu = self.cfg.get("cleanup", {})
+        if not cu.get("enabled") or not text.strip():
+            return text
+        try:
+            return cleanup.clean(
+                text,
+                model=cu.get("model", "gpt-4o-mini"),
+                api_key=self.provider.api_key,
+                base_url=self.provider.base_url,
+                style=cu.get("style", "balanced"),
+                dictionary=cu.get("dictionary", []),
+                language=lang,
+            )
+        except cleanup.CleanupError as e:
+            log.warning("cleanup failed, using raw transcript: %s", e)
+            return text
 
     # -- tray actions (tray thread) --------------------------------------------
 
@@ -196,6 +224,11 @@ class App:
 
     def set_ui_language(self, ui: str):
         self.cfg["ui_language"] = ui
+        config_mod.save_config(self.cfg, self.cfg_path)
+
+    def toggle_cleanup(self):
+        cu = self.cfg.setdefault("cleanup", {})
+        cu["enabled"] = not cu.get("enabled", True)
         config_mod.save_config(self.cfg, self.cfg_path)
 
     def shutdown(self):

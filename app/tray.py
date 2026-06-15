@@ -69,6 +69,9 @@ def run_tray(app, on_ready=None):
         return Menu(
             Item(lambda item: t("ready"), None, enabled=False),
             Menu.SEPARATOR,
+            Item(lambda item: t("cleanup_toggle"),
+                 lambda: (app.toggle_cleanup(), icon.update_menu()),
+                 checked=lambda item: app.cfg.get("cleanup", {}).get("enabled", True)),
             Item(lambda item: t("language"), Menu(
                 lang_item("lang_auto", "auto"),
                 lang_item("lang_en", "en"),
