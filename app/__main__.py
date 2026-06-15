@@ -188,8 +188,8 @@ class App:
             return cleanup.clean(
                 text,
                 model=cu.get("model", "gpt-4o-mini"),
-                api_key=self.provider.api_key,
-                base_url=self.provider.base_url,
+                api_key=config_mod.get_cleanup_api_key(self.cfg),
+                base_url=cu.get("base_url", "https://api.openai.com/v1"),
                 style=cu.get("style", "balanced"),
                 dictionary=cu.get("dictionary", []),
                 language=lang,

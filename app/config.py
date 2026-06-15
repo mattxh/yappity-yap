@@ -31,6 +31,11 @@ DEFAULTS = {
         "model": "gpt-4o-mini",
         "style": "balanced",   # light | balanced | heavy
         "dictionary": [],
+        # Cleanup uses its own OpenAI-compatible chat endpoint, independent of the
+        # transcription provider (so you can transcribe with ElevenLabs and still
+        # clean up with OpenAI). api_key falls back to the OpenAI key / env var.
+        "base_url": "https://api.openai.com/v1",
+        "api_key": "",
     },
 }
 
@@ -76,3 +81,11 @@ def get_api_key(cfg: dict, provider: str) -> str:
     if key:
         return key
     return os.environ.get(ENV_KEYS.get(provider, ""), "")
+
+
+def get_cleanup_api_key(cfg: dict) -> str:
+    """Cleanup key: explicit cleanup.api_key, else the OpenAI key (file or env)."""
+    key = cfg.get("cleanup", {}).get("api_key", "")
+    if key:
+        return key
+    return get_api_key(cfg, "openai")
