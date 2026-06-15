@@ -164,6 +164,17 @@ def test_external_stop_noop_when_idle(rig):
     assert m.external_stop() is False
 
 
+def test_force_start_only_from_idle(rig):
+    m, spy, _ = rig
+    assert m.force_start() is True
+    assert m.is_recording() is True
+    assert m.force_start() is False   # already recording
+    assert spy.calls == []            # caller owns UI/recorder side effects
+    assert m.external_stop() is True
+    m.pipeline_done()
+    assert m.force_start() is True
+
+
 def test_in_chord_hint_for_start_menu_suppression(rig):
     m, _, clock = rig
     assert m.handle("down", "ctrl") is False  # nothing yet

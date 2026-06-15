@@ -94,6 +94,15 @@ class ChordMachine:
             return True
         return False
 
+    def force_start(self) -> bool:
+        """Used by custom non-chord hotkeys (toggle mode). Caller invokes the
+        recorder/UI itself, mirroring external_stop's contract."""
+        if self.state == IDLE:
+            self.state = TOGGLED
+            self.t0 = self.clock()
+            return True
+        return False
+
     def pipeline_done(self):
         if self.state == BUSY:
             self.state = IDLE
