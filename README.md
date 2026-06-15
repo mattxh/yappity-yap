@@ -37,6 +37,38 @@ dictation is saved to `history.jsonl` (tray → Open history).
   the model returns.
 - Tray → UI language switches the menus/notifications between English and 繁體中文.
 
+## Cleanup & accuracy (the Wispr-style polish)
+
+After transcription, the raw text is rewritten by a second AI pass that fixes
+punctuation, removes filler words ("um", "uh"), applies your self-corrections
+("5pm, actually 6" → "6pm"), tidies grammar, and adds light formatting — while keeping
+your wording and your English/中文 mix intact. This is the single biggest quality lever
+and is **on by default**.
+
+- Toggle it from the tray (**Clean up text**) or `config.json` → `cleanup.enabled`.
+  Off = the raw transcript pastes instantly (faster, no extra cost).
+- It adds ~0.5–1.5s and a tiny cost (~US$0.0001/dictation at `gpt-4o-mini`).
+- If the cleanup call fails for any reason, the raw transcript is used — you never lose
+  words.
+
+### Custom vocabulary
+
+Add names, jargon, product names, or colleagues' names to `config.json` →
+`cleanup.dictionary` (e.g. `["Adithya", "Anthropic", "Kubernetes"]`). These bias both
+the transcription and the cleanup pass toward spelling them correctly.
+
+### Cleanup style
+
+`config.json` → `cleanup.style`: `light` (punctuation + fillers only, nearly verbatim),
+`balanced` (default — also tidies grammar and adds paragraphs), or `heavy` (also
+reformats into lists/emails and rephrases for clarity).
+
+### Using Groq for cleanup
+
+If you switch `provider` to `groq`, also set `cleanup.model` to a Groq chat model such as
+`llama-3.3-70b-versatile` (the default `gpt-4o-mini` is OpenAI-only). Cleanup uses the
+same provider endpoint and key as transcription.
+
 ## Switching providers / models
 
 Edit `config.json`:
