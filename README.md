@@ -29,6 +29,24 @@ dictation is saved to `history.jsonl` (tray → Open history).
 - Recording auto-stops after 5 minutes (configurable `max_recording_s`).
 - Recordings shorter than 0.3 s are ignored.
 
+## Command mode — voice-edit selected text
+
+Select some text, then **hold Win+Alt** and speak an instruction ("make this formal",
+"summarize", "turn into bullet points", "translate to English") — the selection is
+replaced with the result. The overlay shows a purple waveform while it listens. Change
+or disable the key with `command_hotkey` in config.json (set it to `""` to disable).
+
+## Snippets & spoken formatting
+
+- **Snippets:** add `"trigger phrase": "expansion"` pairs to `snippets` in config.json.
+  Dictating *only* that phrase pastes the expansion verbatim, e.g.:
+  ```json
+  "snippets": { "my email": "matt@example.com", "sign off": "Best,\nMatt" }
+  ```
+- **Spoken formatting:** dictating just "new line" or "new paragraph" inserts the break
+  (toggle with `spoken_formatting`). Both match only when they're the whole utterance,
+  so they won't fire mid-sentence.
+
 ## Languages
 
 - **Auto-detect** (default): speak English or Mandarin per recording.

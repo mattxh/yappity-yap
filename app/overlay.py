@@ -23,7 +23,8 @@ PILL_BG = "#1c1c20"
 BORDER = "#3a3a40"
 LABEL_FG = "#f4f4f5"
 HINT_FG = "#86868f"
-ACCENTS = {"recording": "#f4796f", "transcribing": "#f0a83a"}
+ACCENTS = {"recording": "#f4796f", "transcribing": "#f0a83a", "command": "#9b8cff"}
+WAVE_MODES = ("recording", "command")   # show the live waveform (else a dot)
 LEADING_GLYPHS = ("● ", "✍ ")
 
 # Waveform bars: distinct speeds/phase offsets so the motion looks lively.
@@ -105,7 +106,7 @@ class Overlay:
                 label, hint = (text.split(" — ", 1) + [""])[:2]
                 pad, gap, h = s(12), s(8), s(30)
                 bar_w, bar_gap = s(3), s(3)
-                ind_w = (_N_BARS * bar_w + (_N_BARS - 1) * bar_gap) if mode == "recording" else s(9)
+                ind_w = (_N_BARS * bar_w + (_N_BARS - 1) * bar_gap) if mode in WAVE_MODES else s(9)
                 lw = label_font.measure(label)
                 hw = hint_font.measure(hint) if hint else 0
                 w = pad + ind_w + gap + lw + ((gap + hw) if hint else 0) + pad
@@ -113,7 +114,7 @@ class Overlay:
                 round_rect(s(1), s(1), w - s(1), h - s(1), (h - s(2)) // 2,
                            fill=PILL_BG, outline=BORDER, width=max(1, s(1)))
                 cy = h // 2
-                if mode == "recording":
+                if mode in WAVE_MODES:
                     x = pad + bar_w // 2
                     for i in range(_N_BARS):
                         bid = canvas.create_line(x, cy - s(3), x, cy + s(3),
@@ -145,7 +146,7 @@ class Overlay:
             def animate():
                 if st["visible"]:
                     st["phase"] += 0.16
-                    if st["mode"] == "recording" and st["bars"]:
+                    if st["mode"] in WAVE_MODES and st["bars"]:
                         target = 0.0
                         if self._level_source is not None:
                             try:

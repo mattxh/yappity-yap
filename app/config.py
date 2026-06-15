@@ -27,6 +27,9 @@ DEFAULTS = {
     "show_overlay": True,
     "append_space": True,
     "notify_on_insert": False,   # toast char count after each paste
+    "command_hotkey": "alt+windows",   # voice-edit selected text
+    "snippets": {},              # spoken trigger phrase -> expansion text
+    "spoken_formatting": True,   # "new line"/"new paragraph" as their own utterance
     "cleanup": {
         "enabled": True,
         "model": "gpt-4o-mini",

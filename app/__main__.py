@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from . import appcontext, config as config_mod
-from . import cleanup, history, inject, postprocess
+from . import cleanup, command, history, inject, postprocess, textcmds
 from .config import get_api_key
 from .hotkey import ChordMachine, KeyboardHookAdapter
 from .i18n import tr
@@ -78,6 +78,8 @@ class App:
         self.jobs: queue.Queue = queue.Queue()
         self.set_tray_state = lambda state: None  # replaced by tray.run_tray
         self._gate = JobGate()   # serializes jobs + owns the auto-stop timer
+        self._cmd_recording = False
+        self._cmd_selection = ""
         threading.Thread(target=self._worker, daemon=True, name="pipeline").start()
 
     def t(self, key, **fmt):
@@ -122,6 +124,79 @@ class App:
         elif self.machine.force_start():
             self._on_start()
 
+    # -- command mode (voice-edit selected text) -----------------------------
+
+    def command_toggle(self):
+        """Custom hotkey: tap to start (capture selection + record instruction),
+        tap again to stop and transform."""
+        if self._cmd_recording:
+            self._cmd_recording = False
+            self._stop_and_transform()
+        elif not self.machine.is_recording() and not self._gate.is_active():
+            self._on_cmd_start()
+
+    def _on_cmd_start(self):
+        selection = inject.capture_selection()
+        if not selection.strip():
+            beep("error", self.cfg["beeps"])
+            self.notifier.toast(self.t("select_text_first"))
+            return
+        try:
+            self.recorder.start()
+        except MicError as e:
+            beep("error", self.cfg["beeps"])
+            self.notifier.toast(self.t("err_mic", error=str(e)))
+            return
+        self._cmd_selection = selection
+        self._cmd_recording = True
+        beep("start", self.cfg["beeps"])
+        self.overlay.show(self.t("command"), "command")
+        self.set_tray_state("recording")
+        self._gate.start_timer(self.cfg["max_recording_s"], self._cmd_auto_stop)
+
+    def _cmd_auto_stop(self):
+        if self._cmd_recording:
+            self._cmd_recording = False
+            self._stop_and_transform()
+
+    def _stop_and_transform(self):
+        self._gate.cancel_timer()
+        wav = self.recorder.stop()
+        beep("stop", self.cfg["beeps"])
+        if not wav or not self._gate.try_begin():
+            self._finish_ui()
+            return
+        self.overlay.show(self.t("transcribing"), "transcribing")
+        self.set_tray_state("transcribing")
+        self.jobs.put(("command", wav, self._cmd_selection))
+
+    def _run_command(self, wav: bytes, selection: str):
+        instruction = self._transcribe_with_retry(wav, None, None)
+        if not instruction or not instruction.strip():
+            if instruction is not None:
+                self.notifier.toast(self.t("err_empty"))
+            return
+        cu = self.cfg.get("cleanup", {})
+        try:
+            result = command.transform(
+                selection, instruction,
+                model=cu.get("model", "gpt-4o-mini"),
+                api_key=config_mod.get_cleanup_api_key(self.cfg),
+                base_url=cu.get("base_url", "https://api.openai.com/v1"),
+            )
+        except command.CommandError as e:
+            beep("error", self.cfg["beeps"])
+            self.notifier.toast(self.t("err_api", error=str(e)))
+            return
+        result = postprocess.to_traditional(result)
+        if not result.strip():
+            return
+        inject.insert_text(result)
+        if self.cfg.get("notify_on_insert"):
+            self.notifier.toast(self.t("done_notify", chars=len(result)))
+        history.append_entry(history.HISTORY_PATH, lang="cmd",
+                             duration_s=wav_duration(wav), text=result)
+
     def _stop_and_enqueue(self):
         self._gate.cancel_timer()
         wav = self.recorder.stop()
@@ -139,10 +214,14 @@ class App:
     def _worker(self):
         while True:
             job = self.jobs.get()
-            if job[0] == "quit":
+            kind = job[0]
+            if kind == "quit":
                 return
             try:
-                self._transcribe_and_insert(job[1])
+                if kind == "command":
+                    self._run_command(job[1], job[2])
+                else:
+                    self._transcribe_and_insert(job[1])
             except Exception:
                 log.exception("pipeline crashed")
                 self.notifier.toast(self.t("err_api", error="internal error — see app.log"))
@@ -162,16 +241,24 @@ class App:
         text = self._transcribe_with_retry(wav, language, prompt)
         if text is None:
             return  # already notified
-        text = self._maybe_cleanup(text, lang)
-        text = postprocess.process(text, self.cfg.get("append_space", True))
-        if not text.strip():
-            self.notifier.toast(self.t("err_empty"))
-            return
-        inject.insert_text(text)
+        snippet = textcmds.snippet_match(text, self.cfg.get("snippets", {}))
+        fmt = (textcmds.apply_spoken_formatting(text)
+               if self.cfg.get("spoken_formatting", True) else None)
+        if snippet is not None:
+            final = snippet
+        elif fmt is not None:
+            final = fmt
+        else:
+            final = postprocess.process(self._maybe_cleanup(text, lang),
+                                        self.cfg.get("append_space", True))
+            if not final.strip():
+                self.notifier.toast(self.t("err_empty"))
+                return
+        inject.insert_text(final)
         if self.cfg.get("notify_on_insert"):
-            self.notifier.toast(self.t("done_notify", chars=len(text)))
+            self.notifier.toast(self.t("done_notify", chars=len(final)))
         history.append_entry(history.HISTORY_PATH, lang=lang,
-                             duration_s=wav_duration(wav), text=text)
+                             duration_s=wav_duration(wav), text=final)
 
     def _transcribe_with_retry(self, wav, language, prompt):
         for attempt in (1, 2):
@@ -355,6 +442,16 @@ def main(argv=None) -> int:
 
         keyboard.add_hotkey(hotkey_cfg, app.toggle_simple)
         log.info("custom hotkey %r (toggle mode)", hotkey_cfg)
+
+    cmd_hotkey = cfg.get("command_hotkey", "alt+windows")
+    if cmd_hotkey:
+        try:
+            import keyboard
+
+            keyboard.add_hotkey(cmd_hotkey, app.command_toggle)
+            log.info("command hotkey %r", cmd_hotkey)
+        except Exception:
+            log.warning("could not register command hotkey %r", cmd_hotkey, exc_info=True)
 
     on_ready = None
     if not get_api_key(cfg, cfg["provider"]):

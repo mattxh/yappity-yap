@@ -8,7 +8,7 @@ import time
 
 log = logging.getLogger(__name__)
 
-MODIFIER_KEYS = ("ctrl", "left windows", "right windows")
+MODIFIER_KEYS = ("ctrl", "alt", "left windows", "right windows")
 
 
 def _wait_modifiers_released(timeout_s: float = 1.0):
@@ -37,3 +37,22 @@ def insert_text(text: str, settle_ms: int = 150):
         keyboard.send("ctrl+v")
     except Exception:
         log.exception("paste failed (text remains on clipboard)")
+
+
+def capture_selection(settle_ms: int = 130) -> str:
+    """Copy the current selection and return it (for command mode). Waits for the
+    trigger modifiers to release first so we don't send Win+Ctrl+C etc."""
+    import keyboard
+    import pyperclip
+
+    _wait_modifiers_released()
+    try:
+        keyboard.send("ctrl+c")
+    except Exception:
+        log.exception("copy failed")
+        return ""
+    time.sleep(settle_ms / 1000.0)
+    try:
+        return pyperclip.paste() or ""
+    except Exception:
+        return ""
