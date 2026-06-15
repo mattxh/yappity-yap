@@ -266,6 +266,9 @@ def main(argv=None) -> int:
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s", handlers=handlers)
+    # Keep third-party debug spam out of app.log (README points users here).
+    for noisy in ("PIL", "comtypes"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
     if args.list_devices:
         print(list_devices())
