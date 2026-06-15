@@ -1,26 +1,74 @@
-"""Beep cues and toast notifications (toast sink is injected by tray)."""
+"""Calm synthesized sound cues and toast notifications.
+
+Replaces winsound.Beep (a harsh square wave) with soft sine-tone chimes that have a
+short fade-in/out envelope, so there is no sharp attack click. Tones are precomputed
+16-bit PCM mono WAVs played with winsound.PlaySound(SND_MEMORY) — non-blocking.
+"""
+import io
 import logging
-import threading
+import math
+import struct
+import wave
+import winsound
 
 log = logging.getLogger(__name__)
 
-_BEEPS = {"start": (880, 90), "stop": (660, 90), "cancel": (440, 130), "error": (330, 200)}
+SAMPLERATE = 44100
+
+# Two-note chimes (freq Hz, duration s). Rising = start, falling = stop, etc.
+_CHIMES = {
+    "start": [(523.25, 0.085), (659.25, 0.085)],   # C5 -> E5, gentle rise
+    "stop": [(659.25, 0.085), (523.25, 0.085)],    # E5 -> C5, gentle fall
+    "cancel": [(440.0, 0.07), (392.0, 0.11)],      # A4 -> G4, soft dismiss
+    "error": [(293.66, 0.10), (293.66, 0.14)],     # D4 x2, low and calm
+}
+
+
+def synth_wav(segments, samplerate: int = SAMPLERATE,
+              volume: float = 0.30, fade_ms: int = 12) -> bytes:
+    """Render a sequence of (freq_hz, duration_s) sine segments to WAV bytes.
+
+    Each segment gets a linear fade-in/out (fade_ms per side) to avoid click
+    transients — this is what makes the cue sound soft rather than sharp.
+    """
+    amp = int(volume * 32767)
+    fade_n = max(1, int(samplerate * fade_ms / 1000))
+    frames = bytearray()
+    for freq, dur in segments:
+        n = int(samplerate * dur)
+        for i in range(n):
+            env = 1.0
+            if i < fade_n:
+                env = i / fade_n
+            elif i > n - fade_n:
+                env = max(0.0, (n - i) / fade_n)
+            sample = int(amp * env * math.sin(2 * math.pi * freq * i / samplerate))
+            frames += struct.pack("<h", sample)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(samplerate)
+        w.writeframes(bytes(frames))
+    return buf.getvalue()
+
+
+CUES = {kind: synth_wav(segs) for kind, segs in _CHIMES.items()}
 
 
 def beep(kind: str, enabled: bool = True):
     if not enabled:
         return
-
-    def _play():
-        try:
-            import winsound
-
-            freq, ms = _BEEPS.get(kind, (500, 100))
-            winsound.Beep(freq, ms)
-        except Exception:
-            log.debug("beep failed", exc_info=True)
-
-    threading.Thread(target=_play, daemon=True).start()
+    data = CUES.get(kind)
+    if not data:
+        return
+    try:
+        winsound.PlaySound(
+            data,
+            winsound.SND_MEMORY | winsound.SND_ASYNC | winsound.SND_NODEFAULT,
+        )
+    except Exception:
+        log.debug("sound cue failed", exc_info=True)
 
 
 class Notifier:
