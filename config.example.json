@@ -19,6 +19,12 @@
   "spoken_formatting": true,
   "snippets": {},
   "silence_threshold": 0.06,
+  "learn": {
+    "enabled": false,
+    "min_ratio": 0.6,
+    "max_terms": 200,
+    "notify": true
+  },
   "cleanup": {
     "enabled": true,
     "model": "gpt-4o-mini",

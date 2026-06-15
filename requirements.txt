@@ -5,3 +5,4 @@ pystray>=0.19
 Pillow>=10.0
 pyperclip>=1.9
 opencc-python-reimplemented>=0.1.7
+comtypes>=1.4   ; sys_platform == "win32"  # UI Automation, for the auto-learning dictionary

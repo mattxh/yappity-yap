@@ -75,6 +75,16 @@ Add names, jargon, product names, or colleagues' names to `config.json` →
 `cleanup.dictionary` (e.g. `["Adithya", "Anthropic", "Kubernetes"]`). These bias both
 the transcription and the cleanup pass toward spelling them correctly.
 
+### Auto-learning the dictionary (opt-in)
+
+Set `learn.enabled` to `true` and the app will watch for corrections you make to dictated
+text and add the fixed names/terms to `cleanup.dictionary` automatically. It reads the
+focused field via Windows UI Automation, so it works in many apps (Word, most native
+fields, many Electron apps) but not all (terminals and some custom editors don't expose
+their text — there it simply does nothing). It learns conservatively (close
+single-word fixes only, skipping common words) so it won't fill your dictionary with
+junk, and learning happens the next time you dictate in the same field.
+
 ### Cleanup style
 
 `config.json` → `cleanup.style`: `light` (punctuation + fillers only, nearly verbatim),

@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from . import appcontext, config as config_mod
-from . import cleanup, command, history, inject, postprocess, textcmds
+from . import cleanup, command, history, inject, learn, postprocess, textcmds, uia
 from .config import get_api_key
 from .hotkey import ChordMachine, KeyboardHookAdapter
 from .i18n import tr
@@ -79,6 +79,7 @@ class App:
         self.jobs: queue.Queue = queue.Queue()
         self.set_tray_state = lambda state: None  # replaced by tray.run_tray
         self.on_history_changed = lambda: None    # replaced by tray (refresh Recent)
+        self._pending_learn = None   # (inserted_text, field_snapshot) for auto-learn
         self._gate = JobGate()   # serializes jobs + owns the auto-stop timer
         self._cmd_recording = False
         self._cmd_selection = ""
@@ -234,6 +235,7 @@ class App:
                 self._gate.end()
 
     def _transcribe_and_insert(self, wav: bytes):
+        self._consume_pending_learn()   # learn from edits made since the last paste
         try:
             LAST_RECORDING.write_bytes(wav)
         except OSError:
@@ -263,6 +265,43 @@ class App:
         history.append_entry(history.HISTORY_PATH, lang=lang,
                              duration_s=wav_duration(wav), text=final)
         self.on_history_changed()
+        self._set_pending_learn(final)
+
+    # -- auto-learning dictionary (UIA reads stay on this worker thread) -------
+
+    def _set_pending_learn(self, inserted: str):
+        lc = self.cfg.get("learn", {})
+        if not lc.get("enabled"):
+            self._pending_learn = None
+            return
+        snapshot = uia.read_focused_text()
+        self._pending_learn = (inserted, snapshot) if snapshot else None
+
+    def _consume_pending_learn(self):
+        pending, self._pending_learn = self._pending_learn, None
+        lc = self.cfg.get("learn", {})
+        if not pending or not lc.get("enabled"):
+            return
+        current = uia.read_focused_text()
+        if not current:
+            return
+        inserted, snapshot = pending
+        dic = self.cfg.setdefault("cleanup", {}).setdefault("dictionary", [])
+        terms = learn.extract_corrections(inserted, snapshot, current,
+                                          known=set(dic),
+                                          min_ratio=lc.get("min_ratio", 0.6))
+        if not terms:
+            return
+        for term in terms:
+            if term not in dic:
+                dic.append(term)
+        max_terms = lc.get("max_terms", 200)
+        if len(dic) > max_terms:
+            del dic[:len(dic) - max_terms]
+        config_mod.save_config(self.cfg, self.cfg_path)
+        log.info("auto-learned dictionary terms: %s", terms)
+        if lc.get("notify", True):
+            self.notifier.toast(self.t("learned", terms=", ".join(terms)))
 
     def _transcribe_with_retry(self, wav, language, prompt):
         for attempt in (1, 2):

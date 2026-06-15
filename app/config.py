@@ -31,6 +31,12 @@ DEFAULTS = {
     "snippets": {},              # spoken trigger phrase -> expansion text
     "spoken_formatting": True,   # "new line"/"new paragraph" as their own utterance
     "silence_threshold": 0.06,   # skip the API if the take never got this loud (0 = off)
+    "learn": {                   # auto-learn corrected terms into cleanup.dictionary
+        "enabled": False,        # opt-in: needs UI Automation (works in many apps, not all)
+        "min_ratio": 0.6,
+        "max_terms": 200,
+        "notify": True,
+    },
     "cleanup": {
         "enabled": True,
         "model": "gpt-4o-mini",
