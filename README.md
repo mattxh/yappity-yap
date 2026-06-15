@@ -63,6 +63,24 @@ the transcription and the cleanup pass toward spelling them correctly.
 `balanced` (default — also tidies grammar and adds paragraphs), or `heavy` (also
 reformats into lists/emails and rephrases for clarity).
 
+### App-aware output
+
+When `cleanup.app_aware` is on (default), the app detects which program you're dictating
+into and adapts the cleanup tone/formatting: casual in Slack/Discord, polished in
+email, code-verbatim in editors (VS Code, PyCharm…), clean prose in docs. Override or
+extend the built-in rules via `cleanup.app_styles`, e.g.:
+
+```json
+"app_styles": [
+  { "match": "obsidian", "style": "Markdown notes; use bullet points." },
+  { "match": "acme-crm", "style": "Formal, third-person." }
+]
+```
+
+Each rule's `match` is a case-insensitive substring tested against the focused app's
+process name + window title; your entries are checked before the built-ins, first match
+wins.
+
 ### Cleanup endpoint (advanced)
 
 Cleanup runs on its **own** OpenAI-compatible chat endpoint, separate from

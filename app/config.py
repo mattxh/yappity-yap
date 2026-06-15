@@ -32,6 +32,8 @@ DEFAULTS = {
         "model": "gpt-4o-mini",
         "style": "balanced",   # light | balanced | heavy
         "dictionary": [],
+        "app_aware": True,     # adapt tone/format to the focused app
+        "app_styles": [],      # user overrides, merged before built-in defaults
         # Cleanup uses its own OpenAI-compatible chat endpoint, independent of the
         # transcription provider (so you can transcribe with ElevenLabs and still
         # clean up with OpenAI). api_key falls back to the OpenAI key / env var.

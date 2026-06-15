@@ -11,7 +11,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import config as config_mod
+from . import appcontext, config as config_mod
 from . import cleanup, history, inject, postprocess
 from .config import get_api_key
 from .hotkey import ChordMachine, KeyboardHookAdapter
@@ -200,6 +200,13 @@ class App:
         cu = self.cfg.get("cleanup", {})
         if not cu.get("enabled") or not text.strip():
             return text
+        app_hint, app_style = "", ""
+        if cu.get("app_aware", True):
+            proc, title = appcontext.foreground_app()
+            if proc or title:
+                app_hint = f"{proc} {title}".strip()
+                styles = list(cu.get("app_styles", [])) + appcontext.DEFAULT_APP_STYLES
+                app_style = appcontext.match_style(styles, proc, title)
         try:
             return cleanup.clean(
                 text,
@@ -209,6 +216,8 @@ class App:
                 style=cu.get("style", "balanced"),
                 dictionary=cu.get("dictionary", []),
                 language=lang,
+                app_hint=app_hint,
+                app_style=app_style,
             )
         except cleanup.CleanupError as e:
             log.warning("cleanup failed, using raw transcript: %s", e)

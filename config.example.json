@@ -14,11 +14,14 @@
   "beeps": true,
   "show_overlay": true,
   "append_space": true,
+  "notify_on_insert": false,
   "cleanup": {
     "enabled": true,
     "model": "gpt-4o-mini",
     "style": "balanced",
     "dictionary": [],
+    "app_aware": true,
+    "app_styles": [],
     "base_url": "https://api.openai.com/v1",
     "api_key": ""
   }

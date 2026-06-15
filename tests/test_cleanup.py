@@ -44,6 +44,18 @@ def test_build_messages_dictionary_only_when_present():
     assert "git diff" in with_terms[0]["content"]
 
 
+def test_build_messages_app_hint_included():
+    msgs = build_messages("x", style="balanced", dictionary=[], language="auto",
+                          app_hint="slack.exe Slack", app_style="Casual tone.")
+    assert "slack" in msgs[0]["content"].lower()
+    assert "Casual tone." in msgs[0]["content"]
+
+
+def test_build_messages_app_hint_omitted_when_empty():
+    msgs = build_messages("x", style="balanced", dictionary=[], language="auto")
+    assert "typing into" not in msgs[0]["content"].lower()
+
+
 def test_build_messages_language_hint():
     zh = build_messages("x", style="balanced", dictionary=[], language="zh")
     assert "Traditional Chinese" in zh[0]["content"]

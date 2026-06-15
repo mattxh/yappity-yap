@@ -8,7 +8,7 @@ def _fake_app(enabled=True, dictionary=None):
     return types.SimpleNamespace(
         cfg={
             "cleanup": {"enabled": enabled, "model": "m", "style": "balanced",
-                        "dictionary": dictionary or [],
+                        "dictionary": dictionary or [], "app_aware": False,
                         "base_url": "http://cleanup", "api_key": "ck"},
             "providers": {"openai": {"api_key": "openai-key"}},
         },

@@ -53,7 +53,7 @@ _LANG_HINT = {
 }
 
 
-def build_messages(text, *, style, dictionary, language):
+def build_messages(text, *, style, dictionary, language, app_hint="", app_style=""):
     rule = STYLE_RULES.get(style, STYLE_RULES["balanced"])
     parts = [_PREAMBLE, rule, _CONSTRAINTS]
     if dictionary:
@@ -62,6 +62,11 @@ def build_messages(text, *, style, dictionary, language):
     hint = _LANG_HINT.get(language)
     if hint:
         parts.append(hint)
+    if app_hint:
+        line = f"The user is typing into {app_hint}."
+        if app_style:
+            line += f" {app_style}"
+        parts.append(line)
     return [
         {"role": "system", "content": " ".join(parts)},
         {"role": "user", "content": text},
@@ -75,12 +80,13 @@ def _strip_wrapping_quotes(s: str) -> str:
 
 
 def clean(text, *, model, api_key, base_url, style="balanced",
-          dictionary=(), language="auto", timeout=30) -> str:
+          dictionary=(), language="auto", app_hint="", app_style="", timeout=30) -> str:
     if not text or not text.strip():
         return ""
     if not api_key:
         raise CleanupError("API key not configured")
-    messages = build_messages(text, style=style, dictionary=dictionary, language=language)
+    messages = build_messages(text, style=style, dictionary=dictionary, language=language,
+                              app_hint=app_hint, app_style=app_style)
     try:
         resp = requests.post(
             f"{base_url}/chat/completions",
