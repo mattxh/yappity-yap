@@ -12,5 +12,11 @@
   "input_device": null,
   "beeps": true,
   "show_overlay": true,
-  "append_space": true
+  "append_space": true,
+  "cleanup": {
+    "enabled": true,
+    "model": "gpt-4o-mini",
+    "style": "balanced",
+    "dictionary": []
+  }
 }

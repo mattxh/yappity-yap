@@ -25,6 +25,12 @@ DEFAULTS = {
     "beeps": True,
     "show_overlay": True,
     "append_space": True,
+    "cleanup": {
+        "enabled": True,
+        "model": "gpt-4o-mini",
+        "style": "balanced",   # light | balanced | heavy
+        "dictionary": [],
+    },
 }
 
 ENV_KEYS = {"openai": "OPENAI_API_KEY", "groq": "GROQ_API_KEY"}

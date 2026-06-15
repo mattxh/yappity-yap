@@ -41,3 +41,20 @@ def test_bad_json_falls_back_to_defaults(tmp_path):
     p.write_text("{not json", encoding="utf-8")
     cfg = config.load_config(p)
     assert cfg["provider"] == "openai"
+
+
+def test_cleanup_defaults_and_merge(tmp_path):
+    import json as _json
+
+    cfg = config.load_config(tmp_path / "nope.json")
+    assert cfg["cleanup"]["enabled"] is True
+    assert cfg["cleanup"]["model"] == "gpt-4o-mini"
+    assert cfg["cleanup"]["style"] == "balanced"
+    assert cfg["cleanup"]["dictionary"] == []
+
+    p = tmp_path / "config.json"
+    p.write_text(_json.dumps({"cleanup": {"dictionary": ["Adithya"]}}), encoding="utf-8")
+    merged = config.load_config(p)
+    assert merged["cleanup"]["dictionary"] == ["Adithya"]      # user value kept
+    assert merged["cleanup"]["enabled"] is True                # default filled
+    assert merged["cleanup"]["model"] == "gpt-4o-mini"          # default filled
