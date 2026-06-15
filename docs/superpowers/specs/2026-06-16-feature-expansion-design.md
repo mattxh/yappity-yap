@@ -10,9 +10,11 @@
 2. **App-aware output** — adapt cleanup tone/format to the focused app.
 3. **Command mode + snippets** — voice-edit selected text; spoken macro expansion; spoken formatting.
 4. **Tray controls + history search + stats + silence guard.**
+5. **Auto-learning dictionary** — learn corrected terms from the user's manual edits to
+   inserted text (best-effort, opt-in).
 
 Explicitly **out of scope** (deferred): local/offline transcription, real-time streaming,
-auto-learning dictionary, whisper-mode.
+whisper-mode.
 
 Built in four phases, each its own plan + TDD + verify + commit, in the order above
 (hardening first because it also creates structure the features build on).
@@ -173,11 +175,64 @@ Built in four phases, each its own plan + TDD + verify + commit, in the order ab
 
 ---
 
+---
+
+## Phase 5 — Auto-learning dictionary (from user corrections)
+
+### Goal
+After dictated text is inserted, detect manual corrections the user makes to it and add
+the corrected terms to `cleanup.dictionary`, so future transcription + cleanup spell them
+right without manual upkeep.
+
+### Feasibility (honest)
+Reliable correction detection requires reading the focused control's text, which on
+Windows means **UI Automation (UIA)**. UIA exposes editable text in many native and some
+Electron/browser apps, but not all (terminals, some custom editors don't). So this
+feature is **best-effort and opt-in (default off)** and **degrades gracefully**: if UIA
+or the control text isn't available, it silently does nothing — no errors, no harm.
+
+### Design
+- New `app/uia.py`: `read_focused_text() -> str | None` reading the focused control's
+  text value via UIA. Import-guarded (uses `comtypes`/`uiautomation`); if the library is
+  missing or fails on this Python, the function returns `None` and the feature disables
+  itself (logged once). Feasibility verified at build time; the app is unaffected if UIA
+  is unavailable.
+- New `app/learn.py` (pure core + thin glue):
+  - After a successful paste, the pipeline records `pending = (inserted_text,
+    snapshot_after, ts)` where `snapshot_after = uia.read_focused_text()`.
+  - On the next dictation start (or a debounce idle timer), read the control again;
+    `extract_corrections(inserted_text, snapshot_after, current_text)` finds token
+    substitutions inside the inserted region.
+  - A substitution `(old → new)` is learnable iff `_is_learnable(old, new, known)`:
+    `new` length ≥ 3 and alphabetic-ish; Levenshtein ratio(old,new) ≥ `min_ratio`
+    (a correction, not a different word); `new` not already in the dictionary; `new`
+    not in a small common-word stoplist (bias toward names/jargon).
+  - Accepted terms are appended to `cleanup.dictionary` (dedup, cap `max_terms`), config
+    saved, optional toast "Learned: <term>".
+- **Pure, tested core:** `extract_corrections(...)`, `_is_learnable(...)`,
+  `_levenshtein_ratio(...)`. The UIA reads are the thin untested shim.
+- Config `learn`: `{ "enabled": false, "min_ratio": 0.6, "max_terms": 200, "notify": true }`.
+
+### Tests
+- `_levenshtein_ratio`: identical → 1.0; disjoint → low; near-miss ~high.
+- `_is_learnable`: "aditya"→"adithya" near-miss → True; "cat"→"dog" → False; common word
+  → False; already-in-dict (passed set) → False; len < 3 → False.
+- `extract_corrections`: inserted "call aditya now" / current "call Adithya now" →
+  `["Adithya"]`; no change → `[]`; full unrelated rewrite → `[]` (ratios too low).
+
+### Risks
+| Risk | Mitigation |
+|---|---|
+| UIA unavailable in many apps | Best-effort + opt-in; silently no-ops when text can't be read. |
+| Dictionary pollution (false positives) | Conservative gates (ratio, length, stoplist, dedup, cap); opt-in; user can edit config. |
+| UIA lib incompatible with Python 3.14 | Import-guarded; feature disables, app unaffected. Verified at build time. |
+| Reads slow/block | Reads run on the worker/learn thread, never the hook thread; short timeouts. |
+
 ## Cross-cutting
 
 - **Config additions** (all with defaults; deep-merge already preserves nested user
   values): `command_hotkey`, `snippets`, `spoken_formatting`, `notify_on_insert`,
-  `silence_threshold`, `cleanup.app_aware`, `cleanup.app_styles`.
+  `silence_threshold`, `cleanup.app_aware`, `cleanup.app_styles`, `learn`.
 - **config.example.json** + **README** updated each phase.
 - **i18n** new keys: `command`, `done_notify` (exists), `provider`, `cleanup_style`,
   `recent`, `stats`, `select_text_first`, provider/style sublabels — added to both tables.
