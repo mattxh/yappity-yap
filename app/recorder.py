@@ -105,16 +105,18 @@ class Recorder:
         return self._stream is not None
 
     def _close(self) -> bytes:
-        self._level = 0.0
-        stream, self._stream = self._stream, None
+        # Swap out stream+buffer atomically under the lock so concurrent
+        # stop/cancel calls from different threads can't double-close.
+        with self._lock:
+            self._level = 0.0
+            stream, self._stream = self._stream, None
+            raw, self._buf = bytes(self._buf), bytearray()
         if stream is not None:
             try:
                 stream.stop()
                 stream.close()
             except Exception:
                 log.exception("closing stream")
-        with self._lock:
-            raw, self._buf = bytes(self._buf), bytearray()
         return raw
 
 

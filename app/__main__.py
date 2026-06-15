@@ -18,6 +18,7 @@ from .hotkey import ChordMachine, KeyboardHookAdapter
 from .i18n import tr
 from .notify import Notifier, beep
 from .overlay import NullOverlay, Overlay
+from .pipeline import JobGate
 from .providers import create_provider
 from .providers.base import TranscriptionError
 from .recorder import MicError, Recorder, list_devices
@@ -76,7 +77,7 @@ class App:
         self.adapter = KeyboardHookAdapter(self.machine)
         self.jobs: queue.Queue = queue.Queue()
         self.set_tray_state = lambda state: None  # replaced by tray.run_tray
-        self._timer = None
+        self._gate = JobGate()   # serializes jobs + owns the auto-stop timer
         threading.Thread(target=self._worker, daemon=True, name="pipeline").start()
 
     def t(self, key, **fmt):
@@ -94,16 +95,14 @@ class App:
         beep("start", self.cfg["beeps"])
         self.overlay.show(self.t("recording"), "recording")
         self.set_tray_state("recording")
-        self._timer = threading.Timer(self.cfg["max_recording_s"], self._auto_stop)
-        self._timer.daemon = True
-        self._timer.start()
+        self._gate.start_timer(self.cfg["max_recording_s"], self._auto_stop)
 
     def _on_stop(self):
-        self._cancel_timer()
+        self._gate.cancel_timer()
         self._stop_and_enqueue()
 
     def _on_cancel(self):
-        self._cancel_timer()
+        self._gate.cancel_timer()
         self.recorder.cancel()
         beep("cancel", self.cfg["beeps"])
         self._finish_ui()
@@ -118,15 +117,16 @@ class App:
         """Custom non-chord hotkey: toggle recording on/off."""
         if self.machine.is_recording():
             if self.machine.external_stop():
-                self._cancel_timer()
+                self._gate.cancel_timer()
                 self._stop_and_enqueue()
         elif self.machine.force_start():
             self._on_start()
 
     def _stop_and_enqueue(self):
+        self._gate.cancel_timer()
         wav = self.recorder.stop()
         beep("stop", self.cfg["beeps"])
-        if not wav:
+        if not wav or not self._gate.try_begin():
             self._finish_ui()
             self.machine.pipeline_done()
             return
@@ -149,6 +149,7 @@ class App:
             finally:
                 self._finish_ui()
                 self.machine.pipeline_done()
+                self._gate.end()
 
     def _transcribe_and_insert(self, wav: bytes):
         try:
@@ -167,6 +168,8 @@ class App:
             self.notifier.toast(self.t("err_empty"))
             return
         inject.insert_text(text)
+        if self.cfg.get("notify_on_insert"):
+            self.notifier.toast(self.t("done_notify", chars=len(text)))
         history.append_entry(history.HISTORY_PATH, lang=lang,
                              duration_s=wav_duration(wav), text=text)
 
@@ -214,9 +217,11 @@ class App:
     # -- tray actions (tray thread) --------------------------------------------
 
     def retry_last(self):
-        if not LAST_RECORDING.exists():
+        if self.machine.is_recording() or not LAST_RECORDING.exists():
             self.notifier.toast(self.t("retry_none"))
             return
+        if not self._gate.try_begin():
+            return  # a job is already running
         wav = LAST_RECORDING.read_bytes()
         self.overlay.show(self.t("transcribing"), "transcribing")
         self.set_tray_state("transcribing")
@@ -249,7 +254,7 @@ class App:
             self.adapter.stop()
         except Exception:
             log.debug("unhook failed", exc_info=True)
-        self._cancel_timer()
+        self._gate.cancel_timer()
         self.recorder.cancel()
         self.jobs.put(("quit",))
         self.overlay.close()
@@ -259,11 +264,6 @@ class App:
     def _finish_ui(self):
         self.overlay.hide()
         self.set_tray_state("idle")
-
-    def _cancel_timer(self):
-        if self._timer is not None:
-            self._timer.cancel()
-            self._timer = None
 
 
 def acquire_single_instance():
@@ -291,7 +291,11 @@ def run_check(cfg) -> int:
         print("ERROR: no audio captured (check microphone).")
         return 1
     provider = create_provider(cfg)
-    text = provider.transcribe(wav, None, None)
+    try:
+        text = provider.transcribe(wav, None, None)
+    except TranscriptionError as e:
+        print(f"ERROR: transcription failed: {e}")
+        return 1
     print("Transcript:", postprocess.process(text, cfg.get("append_space", True)))
     return 0
 

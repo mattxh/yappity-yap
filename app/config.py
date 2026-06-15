@@ -26,6 +26,7 @@ DEFAULTS = {
     "beeps": True,
     "show_overlay": True,
     "append_space": True,
+    "notify_on_insert": False,   # toast char count after each paste
     "cleanup": {
         "enabled": True,
         "model": "gpt-4o-mini",

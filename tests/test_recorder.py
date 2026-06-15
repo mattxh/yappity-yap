@@ -44,3 +44,12 @@ def test_compute_level_louder_is_higher():
 def test_compute_level_handles_odd_byte_count():
     # a stray trailing byte must not crash
     assert 0.0 <= compute_level(b"\x10\x20\x30") <= 1.0
+
+
+def test_close_is_idempotent():
+    from app.recorder import Recorder
+
+    r = Recorder()
+    assert r.stop() is None   # nothing recorded, no active stream
+    r.cancel()                # _close again
+    r.cancel()                # and again — must not raise
