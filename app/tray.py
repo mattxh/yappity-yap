@@ -52,6 +52,33 @@ def run_tray(app, on_ready=None):
             radio=True,
         )
 
+    def provider_item(label, value):
+        return Item(
+            label,
+            lambda: (app.set_provider(value), rebuild()),
+            checked=lambda item: app.cfg.get("provider") == value,
+            radio=True,
+        )
+
+    def style_item(value):
+        return Item(
+            value.capitalize(),
+            lambda: (app.set_cleanup_style(value), icon.update_menu()),
+            checked=lambda item: app.cfg.get("cleanup", {}).get("style") == value,
+            radio=True,
+        )
+
+    def recent_menu():
+        entries = app.recent_entries(8)
+        if not entries:
+            return Menu(Item(lambda item: t("no_history"), None, enabled=False))
+        items = []
+        for entry in entries:
+            text = entry.get("text", "")
+            preview = ((text[:40] + "…") if len(text) > 40 else text).replace("\n", " ")
+            items.append(Item(preview, (lambda tx: lambda: app.reinsert(tx))(text)))
+        return Menu(*items)
+
     def toggle_startup():
         try:
             if startup.is_installed():
@@ -72,16 +99,28 @@ def run_tray(app, on_ready=None):
             Item(lambda item: t("cleanup_toggle"),
                  lambda: (app.toggle_cleanup(), icon.update_menu()),
                  checked=lambda item: app.cfg.get("cleanup", {}).get("enabled", True)),
+            Item(lambda item: t("cleanup_style"), Menu(
+                style_item("light"),
+                style_item("balanced"),
+                style_item("heavy"),
+            )),
             Item(lambda item: t("language"), Menu(
                 lang_item("lang_auto", "auto"),
                 lang_item("lang_en", "en"),
                 lang_item("lang_zh", "zh"),
+            )),
+            Item(lambda item: t("provider"), Menu(
+                provider_item("OpenAI", "openai"),
+                provider_item("ElevenLabs", "elevenlabs"),
+                provider_item("Groq", "groq"),
             )),
             Item(lambda item: t("ui_language"), Menu(
                 ui_lang_item("English", "en"),
                 ui_lang_item("繁體中文", "zh-TW"),
             )),
             Menu.SEPARATOR,
+            Item(lambda item: t("recent"), recent_menu()),
+            Item(lambda item: t("stats"), lambda: app.show_stats()),
             Item(lambda item: t("retry_last"), lambda: app.retry_last()),
             Item(lambda item: t("open_history"), lambda: app.open_history()),
             Item(lambda item: t("open_config"), lambda: app.open_config()),
@@ -105,5 +144,6 @@ def run_tray(app, on_ready=None):
 
     icon.menu = build_menu()
     app.set_tray_state = set_state
+    app.on_history_changed = rebuild   # refresh the Recent submenu after dictations
     app.notifier.set_sink(lambda msg, title: icon.notify(msg, title))
     icon.run(setup=setup)

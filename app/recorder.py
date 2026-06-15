@@ -56,12 +56,14 @@ class MicError(Exception):
 
 
 class Recorder:
-    def __init__(self, device=None):
+    def __init__(self, device=None, silence_threshold: float = 0.0):
         self.device = device
+        self.silence_threshold = silence_threshold
         self._stream = None
         self._buf = bytearray()
         self._lock = threading.Lock()
         self._level = 0.0   # live loudness 0..1, updated on the audio thread
+        self._peak = 0.0    # max level seen during the current take
 
     def level(self) -> float:
         """Current input loudness (0..1). Read by the overlay's waveform."""
@@ -72,6 +74,7 @@ class Recorder:
 
         with self._lock:
             self._buf = bytearray()
+            self._peak = 0.0
 
         def callback(indata, frames, time_info, status):
             if status:
@@ -79,7 +82,10 @@ class Recorder:
             data = bytes(indata)
             with self._lock:
                 self._buf.extend(data)
-            self._level = compute_level(data)
+            lvl = compute_level(data)
+            self._level = lvl
+            if lvl > self._peak:
+                self._peak = lvl
 
         try:
             self._stream = sd.RawInputStream(
@@ -92,9 +98,12 @@ class Recorder:
             raise MicError(str(e)) from e
 
     def stop(self) -> bytes | None:
-        """Stop and return WAV bytes, or None if too short to be speech."""
+        """Stop and return WAV bytes, or None if too short or too quiet to be speech."""
+        peak = self._peak
         raw = self._close()
         if duration_of(raw) < MIN_DURATION_S:
+            return None
+        if peak < self.silence_threshold:
             return None
         return raw_to_wav(raw)
 
@@ -109,6 +118,7 @@ class Recorder:
         # stop/cancel calls from different threads can't double-close.
         with self._lock:
             self._level = 0.0
+            self._peak = 0.0
             stream, self._stream = self._stream, None
             raw, self._buf = bytes(self._buf), bytearray()
         if stream is not None:

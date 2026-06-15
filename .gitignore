@@ -1,6 +1,7 @@
 # Secrets & user data
 config.json
 history.jsonl
+history.html
 last_recording.wav
 app.log*
 

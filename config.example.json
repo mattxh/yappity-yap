@@ -18,6 +18,7 @@
   "command_hotkey": "alt+windows",
   "spoken_formatting": true,
   "snippets": {},
+  "silence_threshold": 0.06,
   "cleanup": {
     "enabled": true,
     "model": "gpt-4o-mini",

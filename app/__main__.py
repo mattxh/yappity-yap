@@ -66,7 +66,8 @@ class App:
         self.cfg = cfg
         self.cfg_path = cfg_path
         self.provider = create_provider(cfg)
-        self.recorder = Recorder(device=cfg.get("input_device"))
+        self.recorder = Recorder(device=cfg.get("input_device"),
+                                 silence_threshold=cfg.get("silence_threshold", 0.0))
         self.overlay = (Overlay(True, level_source=self.recorder.level)
                         if cfg.get("show_overlay", True) else NullOverlay())
         self.notifier = Notifier()
@@ -77,6 +78,7 @@ class App:
         self.adapter = KeyboardHookAdapter(self.machine)
         self.jobs: queue.Queue = queue.Queue()
         self.set_tray_state = lambda state: None  # replaced by tray.run_tray
+        self.on_history_changed = lambda: None    # replaced by tray (refresh Recent)
         self._gate = JobGate()   # serializes jobs + owns the auto-stop timer
         self._cmd_recording = False
         self._cmd_selection = ""
@@ -196,6 +198,7 @@ class App:
             self.notifier.toast(self.t("done_notify", chars=len(result)))
         history.append_entry(history.HISTORY_PATH, lang="cmd",
                              duration_s=wav_duration(wav), text=result)
+        self.on_history_changed()
 
     def _stop_and_enqueue(self):
         self._gate.cancel_timer()
@@ -259,6 +262,7 @@ class App:
             self.notifier.toast(self.t("done_notify", chars=len(final)))
         history.append_entry(history.HISTORY_PATH, lang=lang,
                              duration_s=wav_duration(wav), text=final)
+        self.on_history_changed()
 
     def _transcribe_with_retry(self, wav, language, prompt):
         for attempt in (1, 2):
@@ -324,8 +328,37 @@ class App:
         self.jobs.put(("transcribe", wav))
 
     def open_history(self):
-        history.HISTORY_PATH.touch(exist_ok=True)
-        os.startfile(history.HISTORY_PATH)
+        entries = history.read_entries(history.HISTORY_PATH)
+        out = history.HISTORY_PATH.with_suffix(".html")
+        try:
+            out.write_text(history.render_html(entries), encoding="utf-8")
+            os.startfile(out)
+        except OSError:
+            log.exception("could not open history")
+
+    def recent_entries(self, n: int = 8):
+        return history.tail(history.HISTORY_PATH, n)
+
+    def reinsert(self, text: str):
+        inject.insert_text(text)
+
+    def show_stats(self):
+        s = history.stats(history.read_entries(history.HISTORY_PATH))
+        self.notifier.toast(self.t("stats_summary", n=s["dictations"],
+                                   words=s["words"], saved=s["time_saved_min"]))
+
+    def set_provider(self, name: str):
+        self.cfg["provider"] = name
+        config_mod.save_config(self.cfg, self.cfg_path)
+        try:
+            self.provider = create_provider(self.cfg)
+        except Exception as e:
+            log.exception("provider switch failed")
+            self.notifier.toast(str(e))
+
+    def set_cleanup_style(self, style: str):
+        self.cfg.setdefault("cleanup", {})["style"] = style
+        config_mod.save_config(self.cfg, self.cfg_path)
 
     def open_config(self):
         if not Path(self.cfg_path).exists():

@@ -53,3 +53,21 @@ def test_close_is_idempotent():
     assert r.stop() is None   # nothing recorded, no active stream
     r.cancel()                # _close again
     r.cancel()                # and again — must not raise
+
+
+def test_silence_guard_blocks_low_peak():
+    from app.recorder import Recorder
+
+    r = Recorder(silence_threshold=0.5)
+    r._peak = 0.1                              # quiet take
+    r._buf = bytearray(b"\x00\x00" * 16000)    # 1s, long enough
+    assert r.stop() is None                    # treated as no speech
+
+
+def test_silence_guard_passes_loud_enough():
+    from app.recorder import Recorder
+
+    r = Recorder(silence_threshold=0.05)
+    r._peak = 0.4
+    r._buf = bytearray(b"\x01\x01" * 16000)
+    assert r.stop() is not None

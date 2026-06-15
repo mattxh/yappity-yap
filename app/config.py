@@ -30,6 +30,7 @@ DEFAULTS = {
     "command_hotkey": "alt+windows",   # voice-edit selected text
     "snippets": {},              # spoken trigger phrase -> expansion text
     "spoken_formatting": True,   # "new line"/"new paragraph" as their own utterance
+    "silence_threshold": 0.06,   # skip the API if the take never got this loud (0 = off)
     "cleanup": {
         "enabled": True,
         "model": "gpt-4o-mini",

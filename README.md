@@ -109,6 +109,17 @@ OpenAI key / `OPENAI_API_KEY`). To clean up with Groq's Llama models instead, se
 `cleanup.base_url` to `https://api.groq.com/openai/v1`, `cleanup.api_key` to your Groq
 key, and `cleanup.model` to e.g. `llama-3.3-70b-versatile`.
 
+## Tray menu
+
+Right-click the tray icon for: **Clean up text** toggle · **Cleanup style** (light/
+balanced/heavy) · **Language** · **Provider** (OpenAI/ElevenLabs/Groq — switches live) ·
+**UI language** · **Recent** (last 8 dictations — click to re-insert) · **Usage stats**
+(dictations, words, time saved) · **Retry last recording** · **Open history** (searchable
+browser view) · **Open config** · **Start with Windows** · **Quit**.
+
+Near-silent recordings are skipped before hitting the API (no wasted cost) — tune the
+sensitivity with `silence_threshold` in config.json (`0` disables it).
+
 ## Switching providers / models
 
 Set `"provider"` in `config.json` to `openai`, `elevenlabs`, or `groq`, and put the
