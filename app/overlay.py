@@ -83,8 +83,8 @@ class Overlay:
             def s(px):
                 return int(round(px * scale))
 
-            label_font = tkfont.Font(family="Segoe UI", size=-s(14))
-            hint_font = tkfont.Font(family="Segoe UI", size=-s(12))
+            label_font = tkfont.Font(family="Segoe UI", size=-s(12))
+            hint_font = tkfont.Font(family="Segoe UI", size=-s(10))
             st = {"mode": None, "accent": "#9aa0a6", "dim": PILL_BG, "dot": None,
                   "bars": [], "cy": 0, "hmin": 0, "hmax": 0, "phase": 0.0,
                   "lvl": 0.0, "visible": False}
@@ -103,9 +103,9 @@ class Overlay:
                         text = text[len(g):]
                         break
                 label, hint = (text.split(" — ", 1) + [""])[:2]
-                pad, gap, h = s(16), s(11), s(38)
-                bar_w, bar_gap = s(3), s(4)
-                ind_w = (_N_BARS * bar_w + (_N_BARS - 1) * bar_gap) if mode == "recording" else s(10)
+                pad, gap, h = s(12), s(8), s(30)
+                bar_w, bar_gap = s(3), s(3)
+                ind_w = (_N_BARS * bar_w + (_N_BARS - 1) * bar_gap) if mode == "recording" else s(9)
                 lw = label_font.measure(label)
                 hw = hint_font.measure(hint) if hint else 0
                 w = pad + ind_w + gap + lw + ((gap + hw) if hint else 0) + pad
@@ -121,9 +121,9 @@ class Overlay:
                         st["bars"].append({"id": bid, "x": x, "sp": _BAR_SPEEDS[i],
                                            "off": _BAR_OFFSETS[i], "shape": _BAR_SHAPE[i]})
                         x += bar_w + bar_gap
-                    st.update(cy=cy, hmin=s(2), hmax=s(10), lvl=0.0)
+                    st.update(cy=cy, hmin=s(1), hmax=s(9), lvl=0.0)
                 else:
-                    dr = s(5)
+                    dr = s(4)
                     st["dot"] = canvas.create_oval(pad, cy - dr, pad + 2 * dr, cy + dr,
                                                    fill=accent, outline="")
                 tx = pad + ind_w + gap
@@ -154,7 +154,7 @@ class Overlay:
                                 target = 0.0
                         else:
                             target = 0.5 + 0.5 * math.sin(st["phase"])  # no source: gentle loop
-                        st["lvl"] += (target - st["lvl"]) * 0.35          # smooth jitter
+                        st["lvl"] += (target - st["lvl"]) * 0.5           # smooth jitter
                         lvl = max(0.0, min(1.0, st["lvl"]))
                         cy, hmin, hmax = st["cy"], st["hmin"], st["hmax"]
                         for b in st["bars"]:

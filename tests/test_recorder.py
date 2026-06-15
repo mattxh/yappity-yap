@@ -35,8 +35,8 @@ def test_compute_level_full_scale_clamps_to_one():
 
 
 def test_compute_level_louder_is_higher():
-    quiet = struct.pack("<" + "h" * 1000, *([500] * 1000))
-    loud = struct.pack("<" + "h" * 1000, *([3000] * 1000))
+    quiet = struct.pack("<" + "h" * 1000, *([300] * 1000))
+    loud = struct.pack("<" + "h" * 1000, *([1200] * 1000))
     lq, ll = compute_level(quiet), compute_level(loud)
     assert 0.0 < lq < ll < 1.0
 

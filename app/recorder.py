@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 SAMPLERATE = 16000
 MIN_DURATION_S = 0.3
-_LEVEL_GAIN = 5000.0  # RMS divisor → ~0..1; lower = more sensitive
+_LEVEL_GAIN = 2500.0  # RMS divisor → ~0..1; lower = more sensitive
 
 
 def compute_level(raw: bytes, gain: float = _LEVEL_GAIN) -> float:
@@ -32,7 +32,9 @@ def compute_level(raw: bytes, gain: float = _LEVEL_GAIN) -> float:
         total += v * v
         count += 1
     rms = (total / count) ** 0.5
-    return min(1.0, rms / gain)
+    # sqrt curve boosts quiet/moderate speech so the meter visibly moves
+    # instead of hugging the floor until you shout.
+    return min(1.0, (rms / gain) ** 0.5)
 
 
 def raw_to_wav(raw: bytes, samplerate: int = SAMPLERATE) -> bytes:
