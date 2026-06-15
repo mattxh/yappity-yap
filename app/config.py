@@ -13,7 +13,7 @@ CONFIG_PATH = PROJECT_ROOT / "config.json"
 DEFAULTS = {
     "provider": "openai",
     "providers": {
-        "openai": {"api_key": "", "model": "gpt-4o-mini-transcribe"},
+        "openai": {"api_key": "", "model": "gpt-4o-transcribe"},
         "groq": {"api_key": "", "model": "whisper-large-v3-turbo"},
     },
     "hotkey": "ctrl+windows",

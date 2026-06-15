@@ -7,7 +7,7 @@ def test_defaults_when_file_missing(tmp_path):
     cfg = config.load_config(tmp_path / "nope.json")
     assert cfg["provider"] == "openai"
     assert cfg["tap_threshold_ms"] == 400
-    assert cfg["providers"]["openai"]["model"] == "gpt-4o-mini-transcribe"
+    assert cfg["providers"]["openai"]["model"] == "gpt-4o-transcribe"
 
 
 def test_partial_file_deep_merges(tmp_path):
@@ -16,7 +16,7 @@ def test_partial_file_deep_merges(tmp_path):
     cfg = config.load_config(p)
     assert cfg["language"] == "zh"
     assert cfg["providers"]["openai"]["api_key"] == "sk-x"
-    assert cfg["providers"]["openai"]["model"] == "gpt-4o-mini-transcribe"  # default survives
+    assert cfg["providers"]["openai"]["model"] == "gpt-4o-transcribe"  # default survives
     assert cfg["providers"]["groq"]["model"] == "whisper-large-v3-turbo"
 
 

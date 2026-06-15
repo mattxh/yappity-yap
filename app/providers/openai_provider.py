@@ -8,7 +8,7 @@ class OpenAIProvider:
     name = "openai"
     base_url = "https://api.openai.com/v1"
 
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini-transcribe"):
+    def __init__(self, api_key: str, model: str = "gpt-4o-transcribe"):
         self.api_key = api_key
         self.model = model
 
