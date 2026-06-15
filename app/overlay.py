@@ -1,9 +1,10 @@
 """Sleek 'glass pill' status overlay (tkinter on its own thread, queue-driven).
 
-A rounded, slightly translucent dark pill with a softly pulsing status dot, a label,
-and a dimmer hint. Uses a Windows -transparentcolor key so the area outside the pill is
-fully transparent (true rounded corners). WS_EX_NOACTIVATE | WS_EX_TRANSPARENT |
-WS_EX_TOOLWINDOW keep it click-through and focus-neutral so the paste target keeps focus.
+A rounded, slightly translucent dark pill. Recording shows a minimal animated
+waveform; transcribing shows a softly pulsing dot. Rendered DPI-aware so it stays
+crisp on scaled displays. A Windows -transparentcolor key gives true rounded corners;
+WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW keep it click-through and
+focus-neutral so the paste target keeps focus.
 """
 import logging
 import math
@@ -17,13 +18,18 @@ WS_EX_NOACTIVATE = 0x08000000
 WS_EX_TRANSPARENT = 0x00000020
 WS_EX_TOOLWINDOW = 0x00000080
 
-TRANSPARENT_KEY = "#FF00FF"   # color mapped to "transparent" by Windows
+TRANSPARENT_KEY = "#FF00FF"
 PILL_BG = "#1c1c20"
 BORDER = "#3a3a40"
 LABEL_FG = "#f4f4f5"
 HINT_FG = "#86868f"
 ACCENTS = {"recording": "#f4796f", "transcribing": "#f0a83a"}
-LEADING_GLYPHS = ("● ", "✍ ")  # "● ", "✍ " — we draw our own dot instead
+LEADING_GLYPHS = ("● ", "✍ ")
+
+# Waveform bars: distinct speeds/phase offsets so the motion looks lively.
+_BAR_SPEEDS = (1.0, 1.7, 1.3, 1.9, 1.15, 1.5)
+_BAR_OFFSETS = (0.0, 1.1, 2.2, 0.6, 1.7, 3.0)
+_N_BARS = 6
 
 
 def _blend(c1: str, c2: str, t: float) -> str:
@@ -61,7 +67,7 @@ class Overlay:
             root = tk.Tk()
             root.overrideredirect(True)
             root.attributes("-topmost", True)
-            root.attributes("-alpha", 0.96)
+            root.attributes("-alpha", 0.97)
             try:
                 root.attributes("-transparentcolor", TRANSPARENT_KEY)
             except tk.TclError:
@@ -69,10 +75,17 @@ class Overlay:
             root.configure(bg=TRANSPARENT_KEY)
             canvas = tk.Canvas(root, bg=TRANSPARENT_KEY, highlightthickness=0, bd=0)
             canvas.pack()
-            label_font = tkfont.Font(family="Segoe UI", size=11)
-            hint_font = tkfont.Font(family="Segoe UI", size=10)
-            st = {"accent": "#9aa0a6", "dim": "#1c1c20", "dot": None,
-                  "phase": 0.0, "visible": False}
+
+            scale = max(1.0, root.winfo_fpixels("1i") / 96.0)   # DPI factor (e.g. 1.5)
+
+            def s(px):
+                return int(round(px * scale))
+
+            label_font = tkfont.Font(family="Segoe UI", size=-s(14))
+            hint_font = tkfont.Font(family="Segoe UI", size=-s(12))
+            st = {"mode": None, "accent": "#9aa0a6", "dim": PILL_BG, "dot": None,
+                  "bars": [], "cy": 0, "hmin": 0, "hmax": 0, "phase": 0.0,
+                  "visible": False}
 
             def round_rect(x1, y1, x2, y2, r, **kw):
                 pts = [x1 + r, y1, x2 - r, y1, x2, y1, x2, y1 + r, x2, y2 - r, x2, y2,
@@ -81,47 +94,65 @@ class Overlay:
 
             def build(text, mode):
                 canvas.delete("all")
+                st["bars"], st["dot"] = [], None
                 accent = ACCENTS.get(mode, "#9aa0a6")
                 for g in LEADING_GLYPHS:
                     if text.startswith(g):
                         text = text[len(g):]
                         break
-                if " — " in text:           # split on em dash → label + hint
-                    label, hint = text.split(" — ", 1)
-                else:
-                    label, hint = text, ""
-                pad, dot_r, gap, h = 18, 5, 11, 40
+                label, hint = (text.split(" — ", 1) + [""])[:2]
+                pad, gap, h = s(16), s(11), s(38)
+                bar_w, bar_gap = s(3), s(4)
+                ind_w = (_N_BARS * bar_w + (_N_BARS - 1) * bar_gap) if mode == "recording" else s(10)
                 lw = label_font.measure(label)
                 hw = hint_font.measure(hint) if hint else 0
-                w = pad + dot_r * 2 + gap + lw + ((gap + hw) if hint else 0) + pad
+                w = pad + ind_w + gap + lw + ((gap + hw) if hint else 0) + pad
                 canvas.config(width=w, height=h)
-                round_rect(2, 2, w - 2, h - 2, (h - 4) // 2,
-                           fill=PILL_BG, outline=BORDER, width=1)
+                round_rect(s(1), s(1), w - s(1), h - s(1), (h - s(2)) // 2,
+                           fill=PILL_BG, outline=BORDER, width=max(1, s(1)))
                 cy = h // 2
-                dot = canvas.create_oval(pad, cy - dot_r, pad + dot_r * 2, cy + dot_r,
-                                         fill=accent, outline="")
-                tx = pad + dot_r * 2 + gap
+                if mode == "recording":
+                    x = pad + bar_w // 2
+                    for i in range(_N_BARS):
+                        bid = canvas.create_line(x, cy - s(3), x, cy + s(3),
+                                                 fill=accent, width=bar_w, capstyle="round")
+                        st["bars"].append({"id": bid, "x": x,
+                                           "sp": _BAR_SPEEDS[i], "off": _BAR_OFFSETS[i]})
+                        x += bar_w + bar_gap
+                    st.update(cy=cy, hmin=s(2), hmax=s(9))
+                else:
+                    dr = s(5)
+                    st["dot"] = canvas.create_oval(pad, cy - dr, pad + 2 * dr, cy + dr,
+                                                   fill=accent, outline="")
+                tx = pad + ind_w + gap
                 canvas.create_text(tx, cy, text=label, fill=LABEL_FG,
                                    font=label_font, anchor="w")
                 if hint:
                     canvas.create_text(tx + lw + gap, cy, text=hint, fill=HINT_FG,
                                        font=hint_font, anchor="w")
-                st.update(accent=accent, dim=_blend(accent, PILL_BG, 0.6),
-                          dot=dot, phase=0.0)
+                st.update(mode=mode, accent=accent, dim=_blend(accent, PILL_BG, 0.6),
+                          phase=0.0)
                 root.update_idletasks()
                 sx = (root.winfo_screenwidth() - w) // 2
-                sy = root.winfo_screenheight() - 140
+                sy = root.winfo_screenheight() - s(96)
                 root.geometry(f"{w}x{h}+{sx}+{sy}")
                 root.deiconify()
                 root.attributes("-topmost", True)
                 self._apply_exstyles(root)
 
             def animate():
-                if st["visible"] and st["dot"] is not None:
-                    st["phase"] += 0.09
-                    t = (1 + math.sin(st["phase"])) / 2     # 0..1 breathing
-                    canvas.itemconfig(st["dot"], fill=_blend(st["accent"], st["dim"], 1 - t))
-                root.after(50, animate)
+                if st["visible"]:
+                    st["phase"] += 0.16
+                    if st["mode"] == "recording" and st["bars"]:
+                        cy, hmin, hmax = st["cy"], st["hmin"], st["hmax"]
+                        for b in st["bars"]:
+                            frac = 0.5 + 0.5 * math.sin(st["phase"] * b["sp"] + b["off"])
+                            hh = hmin + (hmax - hmin) * frac
+                            canvas.coords(b["id"], b["x"], cy - hh, b["x"], cy + hh)
+                    elif st["dot"] is not None:
+                        t = (1 + math.sin(st["phase"])) / 2
+                        canvas.itemconfig(st["dot"], fill=_blend(st["accent"], st["dim"], 1 - t))
+                root.after(33, animate)
 
             def poll():
                 try:
@@ -142,7 +173,7 @@ class Overlay:
 
             root.withdraw()
             root.after(40, poll)
-            root.after(50, animate)
+            root.after(33, animate)
             root.mainloop()
         except Exception:
             log.exception("overlay thread died (app continues without overlay)")

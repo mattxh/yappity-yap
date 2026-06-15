@@ -49,11 +49,17 @@ fallback). Replace only the look:
   fully transparent → true rounded corners. Pill drawn as a rounded rectangle
   (smoothed polygon) in near-black `#1c1c20` with a 1px hairline border `#3a3a40`.
   `-alpha 0.96` for a faint translucency.
-- **Contents:** a filled status **dot** (Canvas oval) + main label + a dimmer hint.
-  - recording: coral dot `#f4796f`, label "Recording", hint "Esc to cancel"
-  - transcribing: amber dot `#f0a83a`, label "Transcribing…", no hint
-- **Calm pulse:** the dot "breathes" via a `root.after` loop interpolating its fill
-  between the accent color and a dimmed shade (~1.6s cycle). Stops when hidden.
+- **Contents:** a status indicator + main label + a dimmer hint.
+  - recording: a **minimal animated waveform** — 6 thin coral `#f4796f` bars whose
+    heights breathe via per-bar sine motion (distinct speeds/phases), label "Recording",
+    hint "Esc to cancel".
+  - transcribing: a softly pulsing amber dot `#f0a83a`, label "Transcribing…", no hint.
+- **Animation:** a `root.after(33ms)` loop (~30fps) updates bar heights (recording) or
+  interpolates the dot fill toward a dimmed shade (transcribing). Idle when hidden.
+- **DPI-aware & crisp:** the process is made per-monitor DPI-aware in `__main__`
+  (`SetProcessDpiAwareness`), and the overlay scales every dimension and font by the
+  display DPI factor (`winfo_fpixels('1i')/96`). Without this, tkinter renders at logical
+  resolution and Windows bitmap-stretches it on scaled displays (e.g. 150%) → blurry.
 - **Sizing:** width measured from text via `tkinter.font.Font.measure`; pill height
   fixed (~40px); positioned bottom-center (existing logic).
 - Localized strings keep coming from `i18n.tr` (existing `recording`/`transcribing`

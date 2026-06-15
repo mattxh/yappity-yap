@@ -37,6 +37,18 @@ def wav_duration(wav: bytes) -> float:
     return max(0.0, (len(wav) - WAV_HEADER_BYTES) / BYTES_PER_SECOND)
 
 
+def _set_dpi_awareness():
+    """Make the process per-monitor DPI-aware so the overlay renders at native
+    pixels instead of being bitmap-stretched (blurry) on scaled displays."""
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PER_MONITOR_DPI_AWARE
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
+
 def _force_utf8_console():
     """Windows consoles on zh-TW default to cp950, which cannot encode many
     transcript characters (or even '®' in device names). Force UTF-8 so
@@ -318,6 +330,7 @@ def main(argv=None) -> int:
             0, tr("already_running", cfg.get("ui_language", "en")), "VoiceToText", 0x40)
         return 0
 
+    _set_dpi_awareness()  # before any GUI window (overlay thread starts in App)
     app = App(cfg, config_mod.CONFIG_PATH)
 
     hotkey_cfg = cfg.get("hotkey", "ctrl+windows")
