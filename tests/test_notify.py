@@ -45,23 +45,33 @@ def test_cues_present_and_nonempty():
         assert isinstance(CUES[kind], bytes) and len(CUES[kind]) > 44  # header + data
 
 
-def test_beep_disabled_plays_nothing(monkeypatch):
+def test_beep_disabled_dispatches_nothing(monkeypatch):
     calls = []
-    monkeypatch.setattr(notify.winsound, "PlaySound", lambda *a, **k: calls.append(a))
+    monkeypatch.setattr(notify, "_play", lambda data: calls.append(data))
     notify.beep("start", enabled=False)
     assert calls == []
 
 
-def test_beep_enabled_plays_cue_bytes(monkeypatch):
+def test_beep_enabled_dispatches_cue(monkeypatch):
     calls = []
-    monkeypatch.setattr(notify.winsound, "PlaySound", lambda *a, **k: calls.append(a))
+    monkeypatch.setattr(notify, "_play", lambda data: calls.append(data))
     notify.beep("start", enabled=True)
-    assert len(calls) == 1
-    assert calls[0][0] == CUES["start"]      # plays the precomputed cue
+    assert calls == [CUES["start"]]
 
 
-def test_beep_unknown_kind_is_silent(monkeypatch):
+def test_beep_unknown_kind_dispatches_nothing(monkeypatch):
     calls = []
-    monkeypatch.setattr(notify.winsound, "PlaySound", lambda *a, **k: calls.append(a))
+    monkeypatch.setattr(notify, "_play", lambda data: calls.append(data))
     notify.beep("nonexistent", enabled=True)
     assert calls == []
+
+
+def test_play_uses_memory_not_async(monkeypatch):
+    # Regression: SND_MEMORY | SND_ASYNC raises "Cannot play asynchronously from
+    # memory". Playback must use SND_MEMORY without SND_ASYNC.
+    seen = {}
+    monkeypatch.setattr(notify.winsound, "PlaySound",
+                        lambda data, flags: seen.update(flags=flags))
+    notify._play(CUES["start"]).join(timeout=2)
+    assert seen["flags"] & notify.winsound.SND_MEMORY
+    assert not (seen["flags"] & notify.winsound.SND_ASYNC)

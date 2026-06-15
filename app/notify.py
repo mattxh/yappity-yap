@@ -8,6 +8,7 @@ import io
 import logging
 import math
 import struct
+import threading
 import wave
 import winsound
 
@@ -56,19 +57,27 @@ def synth_wav(segments, samplerate: int = SAMPLERATE,
 CUES = {kind: synth_wav(segs) for kind, segs in _CHIMES.items()}
 
 
+def _play(data: bytes):
+    """Play WAV bytes on a daemon thread. winsound cannot play from memory
+    asynchronously (SND_MEMORY | SND_ASYNC raises), so we play synchronously
+    off-thread to avoid blocking the caller."""
+    def run():
+        try:
+            winsound.PlaySound(data, winsound.SND_MEMORY | winsound.SND_NODEFAULT)
+        except Exception:
+            log.debug("sound cue failed", exc_info=True)
+
+    t = threading.Thread(target=run, daemon=True, name="beep")
+    t.start()
+    return t
+
+
 def beep(kind: str, enabled: bool = True):
     if not enabled:
         return
     data = CUES.get(kind)
-    if not data:
-        return
-    try:
-        winsound.PlaySound(
-            data,
-            winsound.SND_MEMORY | winsound.SND_ASYNC | winsound.SND_NODEFAULT,
-        )
-    except Exception:
-        log.debug("sound cue failed", exc_info=True)
+    if data:
+        _play(data)
 
 
 class Notifier:
