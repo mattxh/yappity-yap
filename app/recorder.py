@@ -1,4 +1,5 @@
 """Microphone capture at 16 kHz mono int16 via sounddevice (no numpy)."""
+import array
 import io
 import logging
 import threading
@@ -8,6 +9,30 @@ log = logging.getLogger(__name__)
 
 SAMPLERATE = 16000
 MIN_DURATION_S = 0.3
+_LEVEL_GAIN = 5000.0  # RMS divisor → ~0..1; lower = more sensitive
+
+
+def compute_level(raw: bytes, gain: float = _LEVEL_GAIN) -> float:
+    """Return a 0..1 loudness estimate (RMS) for int16 mono PCM bytes.
+
+    Subsamples to stay cheap enough for the audio callback thread. No numpy
+    (and Python 3.13+ removed audioop), so RMS is computed directly.
+    """
+    usable = len(raw) - (len(raw) % 2)
+    if usable <= 0:
+        return 0.0
+    samples = array.array("h")
+    samples.frombytes(raw[:usable])
+    n = len(samples)
+    step = max(1, n // 200)
+    total = 0
+    count = 0
+    for i in range(0, n, step):
+        v = samples[i]
+        total += v * v
+        count += 1
+    rms = (total / count) ** 0.5
+    return min(1.0, rms / gain)
 
 
 def raw_to_wav(raw: bytes, samplerate: int = SAMPLERATE) -> bytes:
@@ -34,6 +59,11 @@ class Recorder:
         self._stream = None
         self._buf = bytearray()
         self._lock = threading.Lock()
+        self._level = 0.0   # live loudness 0..1, updated on the audio thread
+
+    def level(self) -> float:
+        """Current input loudness (0..1). Read by the overlay's waveform."""
+        return self._level
 
     def start(self):
         import sounddevice as sd
@@ -44,8 +74,10 @@ class Recorder:
         def callback(indata, frames, time_info, status):
             if status:
                 log.warning("audio status: %s", status)
+            data = bytes(indata)
             with self._lock:
-                self._buf.extend(bytes(indata))
+                self._buf.extend(data)
+            self._level = compute_level(data)
 
         try:
             self._stream = sd.RawInputStream(
@@ -71,6 +103,7 @@ class Recorder:
         return self._stream is not None
 
     def _close(self) -> bytes:
+        self._level = 0.0
         stream, self._stream = self._stream, None
         if stream is not None:
             try:

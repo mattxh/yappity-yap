@@ -66,7 +66,8 @@ class App:
         self.cfg_path = cfg_path
         self.provider = create_provider(cfg)
         self.recorder = Recorder(device=cfg.get("input_device"))
-        self.overlay = Overlay(True) if cfg.get("show_overlay", True) else NullOverlay()
+        self.overlay = (Overlay(True, level_source=self.recorder.level)
+                        if cfg.get("show_overlay", True) else NullOverlay())
         self.notifier = Notifier()
         self.machine = ChordMachine(
             on_start=self._on_start, on_stop=self._on_stop, on_cancel=self._on_cancel,

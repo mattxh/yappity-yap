@@ -50,12 +50,17 @@ fallback). Replace only the look:
   (smoothed polygon) in near-black `#1c1c20` with a 1px hairline border `#3a3a40`.
   `-alpha 0.96` for a faint translucency.
 - **Contents:** a status indicator + main label + a dimmer hint.
-  - recording: a **minimal animated waveform** — 6 thin coral `#f4796f` bars whose
-    heights breathe via per-bar sine motion (distinct speeds/phases), label "Recording",
-    hint "Esc to cancel".
+  - recording: a **minimal audio-reactive waveform** — 6 thin coral `#f4796f` bars
+    whose heights follow the live mic loudness, with a center-weighted shape profile and
+    a small per-bar wiggle so it looks organic. Label "Recording", hint "Esc to cancel".
   - transcribing: a softly pulsing amber dot `#f0a83a`, label "Transcribing…", no hint.
-- **Animation:** a `root.after(33ms)` loop (~30fps) updates bar heights (recording) or
-  interpolates the dot fill toward a dimmed shade (transcribing). Idle when hidden.
+- **Audio reactivity:** `Recorder.compute_level()` derives a 0..1 RMS loudness from each
+  audio chunk on the capture thread (no numpy; Python 3.13+ removed `audioop`, so RMS is
+  computed directly via `array`). `Recorder.level()` exposes it; the overlay is given
+  this as a `level_source` callable and pulls it each frame. A `root.after(33ms)` loop
+  (~30fps) eases the value toward the target (smoothing jitter) and maps it to bar
+  heights; the transcribing dot interpolates its fill toward a dimmed shade. If no
+  `level_source` is provided, bars fall back to a gentle sine loop.
 - **DPI-aware & crisp:** the process is made per-monitor DPI-aware in `__main__`
   (`SetProcessDpiAwareness`), and the overlay scales every dimension and font by the
   display DPI factor (`winfo_fpixels('1i')/96`). Without this, tkinter renders at logical

@@ -29,6 +29,7 @@ LEADING_GLYPHS = ("● ", "✍ ")
 # Waveform bars: distinct speeds/phase offsets so the motion looks lively.
 _BAR_SPEEDS = (1.0, 1.7, 1.3, 1.9, 1.15, 1.5)
 _BAR_OFFSETS = (0.0, 1.1, 2.2, 0.6, 1.7, 3.0)
+_BAR_SHAPE = (0.55, 0.8, 1.0, 1.0, 0.8, 0.55)   # center-weighted waveform profile
 _N_BARS = 6
 
 
@@ -39,8 +40,9 @@ def _blend(c1: str, c2: str, t: float) -> str:
 
 
 class Overlay:
-    def __init__(self, enabled: bool = True):
+    def __init__(self, enabled: bool = True, level_source=None):
         self.enabled = enabled
+        self._level_source = level_source   # callable() -> 0..1 live mic loudness
         self._q: queue.Queue = queue.Queue()
         if enabled:
             threading.Thread(target=self._run, daemon=True, name="overlay").start()
@@ -85,7 +87,7 @@ class Overlay:
             hint_font = tkfont.Font(family="Segoe UI", size=-s(12))
             st = {"mode": None, "accent": "#9aa0a6", "dim": PILL_BG, "dot": None,
                   "bars": [], "cy": 0, "hmin": 0, "hmax": 0, "phase": 0.0,
-                  "visible": False}
+                  "lvl": 0.0, "visible": False}
 
             def round_rect(x1, y1, x2, y2, r, **kw):
                 pts = [x1 + r, y1, x2 - r, y1, x2, y1, x2, y1 + r, x2, y2 - r, x2, y2,
@@ -116,10 +118,10 @@ class Overlay:
                     for i in range(_N_BARS):
                         bid = canvas.create_line(x, cy - s(3), x, cy + s(3),
                                                  fill=accent, width=bar_w, capstyle="round")
-                        st["bars"].append({"id": bid, "x": x,
-                                           "sp": _BAR_SPEEDS[i], "off": _BAR_OFFSETS[i]})
+                        st["bars"].append({"id": bid, "x": x, "sp": _BAR_SPEEDS[i],
+                                           "off": _BAR_OFFSETS[i], "shape": _BAR_SHAPE[i]})
                         x += bar_w + bar_gap
-                    st.update(cy=cy, hmin=s(2), hmax=s(9))
+                    st.update(cy=cy, hmin=s(2), hmax=s(10), lvl=0.0)
                 else:
                     dr = s(5)
                     st["dot"] = canvas.create_oval(pad, cy - dr, pad + 2 * dr, cy + dr,
@@ -144,9 +146,20 @@ class Overlay:
                 if st["visible"]:
                     st["phase"] += 0.16
                     if st["mode"] == "recording" and st["bars"]:
+                        target = 0.0
+                        if self._level_source is not None:
+                            try:
+                                target = float(self._level_source())
+                            except Exception:
+                                target = 0.0
+                        else:
+                            target = 0.5 + 0.5 * math.sin(st["phase"])  # no source: gentle loop
+                        st["lvl"] += (target - st["lvl"]) * 0.35          # smooth jitter
+                        lvl = max(0.0, min(1.0, st["lvl"]))
                         cy, hmin, hmax = st["cy"], st["hmin"], st["hmax"]
                         for b in st["bars"]:
-                            frac = 0.5 + 0.5 * math.sin(st["phase"] * b["sp"] + b["off"])
+                            wig = 0.85 + 0.15 * math.sin(st["phase"] * b["sp"] + b["off"])
+                            frac = min(1.0, lvl * b["shape"] * wig)
                             hh = hmin + (hmax - hmin) * frac
                             canvas.coords(b["id"], b["x"], cy - hh, b["x"], cy + hh)
                     elif st["dot"] is not None:
