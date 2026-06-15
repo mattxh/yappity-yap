@@ -1,8 +1,9 @@
 {
   "provider": "openai",
   "providers": {
-    "openai": { "api_key": "", "model": "gpt-4o-transcribe" },
-    "groq":   { "api_key": "", "model": "whisper-large-v3-turbo" }
+    "openai":     { "api_key": "", "model": "gpt-4o-transcribe" },
+    "groq":       { "api_key": "", "model": "whisper-large-v3-turbo" },
+    "elevenlabs": { "api_key": "", "model": "scribe_v1" }
   },
   "hotkey": "ctrl+windows",
   "tap_threshold_ms": 400,
@@ -17,6 +18,8 @@
     "enabled": true,
     "model": "gpt-4o-mini",
     "style": "balanced",
-    "dictionary": []
+    "dictionary": [],
+    "base_url": "https://api.openai.com/v1",
+    "api_key": ""
   }
 }

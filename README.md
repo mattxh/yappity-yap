@@ -63,22 +63,39 @@ the transcription and the cleanup pass toward spelling them correctly.
 `balanced` (default — also tidies grammar and adds paragraphs), or `heavy` (also
 reformats into lists/emails and rephrases for clarity).
 
-### Using Groq for cleanup
+### Cleanup endpoint (advanced)
 
-If you switch `provider` to `groq`, also set `cleanup.model` to a Groq chat model such as
-`llama-3.3-70b-versatile` (the default `gpt-4o-mini` is OpenAI-only). Cleanup uses the
-same provider endpoint and key as transcription.
+Cleanup runs on its **own** OpenAI-compatible chat endpoint, separate from
+transcription — so you can transcribe with any provider (including ElevenLabs, which has
+no chat endpoint) and still clean up with OpenAI. By default it uses OpenAI
+(`cleanup.base_url` = `https://api.openai.com/v1`; `cleanup.api_key` falls back to your
+OpenAI key / `OPENAI_API_KEY`). To clean up with Groq's Llama models instead, set
+`cleanup.base_url` to `https://api.groq.com/openai/v1`, `cleanup.api_key` to your Groq
+key, and `cleanup.model` to e.g. `llama-3.3-70b-versatile`.
 
 ## Switching providers / models
 
-Edit `config.json`:
+Set `"provider"` in `config.json` to `openai`, `elevenlabs`, or `groq`, and put the
+matching key under `providers.<name>.api_key` (or its env var):
 
-- OpenAI models: `gpt-4o-mini-transcribe` (default, ~US$0.003/min),
-  `gpt-4o-transcribe` (more accurate), `whisper-1`.
-- Groq (free tier): `"provider": "groq"` and put your Groq key in
-  `providers.groq.api_key` (or `GROQ_API_KEY` env var).
-- A local/offline Whisper provider is a planned future option
+- **openai** (default): `gpt-4o-transcribe` (best English, ~US$0.006/min),
+  `gpt-4o-mini-transcribe` (cheaper, ~US$0.003/min), or `whisper-1`.
+  Key: `OPENAI_API_KEY`.
+- **elevenlabs**: ElevenLabs Scribe — best published Mandarin accuracy (~US$0.004–0.008
+  /min). Model `scribe_v1` (default) or `scribe_v2` (newer/more accurate if your account
+  has it). Key: `ELEVENLABS_API_KEY` (get one at elevenlabs.io). Note: Scribe ignores the
+  vocabulary hint at transcription time, but your dictionary still applies in cleanup.
+- **groq** (free tier): `whisper-large-v3-turbo`, fast and cheap. Key: `GROQ_API_KEY`.
+- A local/offline provider (e.g. Qwen3-ASR / Whisper) is a planned future option
   (`app/providers/` is designed for drop-in additions).
+
+### A/B testing transcription quality
+
+To compare on your own voice, switch `"provider"` between `openai` and `elevenlabs`
+(fill in both keys), restart, and dictate the same English and Mandarin phrases. The
+cleanup pass and the Traditional-Chinese guarantee apply identically to both, so you're
+comparing raw transcription quality. Keep whichever wins. ElevenLabs tends to lead on
+Mandarin; OpenAI on English — your accent and mic decide the real winner.
 
 ## Custom hotkey
 
@@ -101,6 +118,7 @@ available there).
 
 ## Privacy & cost
 
-Audio is sent only to your configured provider (OpenAI/Groq) for transcription —
-nothing else leaves your machine. History/audio stay in this folder. OpenAI cost
-≈ US$0.003–0.006 per minute of speech.
+Audio is sent to your configured transcription provider (OpenAI, ElevenLabs, or Groq),
+and — when cleanup is on — the transcript text is sent to your cleanup provider (OpenAI
+by default). Nothing else leaves your machine; history/audio stay in this folder.
+Transcription ≈ US$0.003–0.008 per minute; cleanup ≈ US$0.0001 per dictation.
