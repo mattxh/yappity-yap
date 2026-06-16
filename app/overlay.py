@@ -109,7 +109,8 @@ class Overlay:
                         text = text[len(g):]
                         break
                 label, hint = (text.split(" — ", 1) + [""])[:2]
-                pad, gap, h = s(12), s(8), s(30)
+                textless = (mode == "recording")   # recording shows only the waveform
+                pad, gap, h = s(12), s(8), s(28)
                 bar_w, bar_gap = s(3), s(4)        # wider gap -> wider waveform array
                 dot_r, dot_step = s(2), s(7)
                 if mode in WAVE_MODES:
@@ -118,9 +119,12 @@ class Overlay:
                     ind_w = (_N_DOTS - 1) * dot_step + 2 * dot_r
                 else:
                     ind_w = s(9)
-                lw = label_font.measure(label)
-                hw = hint_font.measure(hint) if hint else 0
-                w = pad + ind_w + gap + lw + ((gap + hw) if hint else 0) + pad
+                lw = label_font.measure(label) if not textless else 0
+                hw = hint_font.measure(hint) if (hint and not textless) else 0
+                if textless:
+                    w = pad + ind_w + pad
+                else:
+                    w = pad + ind_w + gap + lw + ((gap + hw) if hint else 0) + pad
                 canvas.config(width=w, height=h)
                 round_rect(s(1), s(1), w - s(1), h - s(1), (h - s(2)) // 2,
                            fill=PILL_BG, outline=BORDER, width=max(1, s(1)))
@@ -134,7 +138,7 @@ class Overlay:
                         st["bars"].append({"id": bid, "x": x, "sp": sp, "off": off,
                                            "shape": shape})
                         x += bar_w + bar_gap
-                    st.update(cy=cy, hmin=s(1), hmax=s(9), lvl=0.0)
+                    st.update(cy=cy, hmin=s(1), hmax=s(7), lvl=0.0)
                 elif mode == "transcribing":
                     x = pad + dot_r
                     for i in range(_N_DOTS):
@@ -147,12 +151,13 @@ class Overlay:
                     dr = s(4)
                     st["dot"] = canvas.create_oval(pad, cy - dr, pad + 2 * dr, cy + dr,
                                                    fill=accent, outline="")
-                tx = pad + ind_w + gap
-                canvas.create_text(tx, cy, text=label, fill=LABEL_FG,
-                                   font=label_font, anchor="w")
-                if hint:
-                    canvas.create_text(tx + lw + gap, cy, text=hint, fill=HINT_FG,
-                                       font=hint_font, anchor="w")
+                if not textless:
+                    tx = pad + ind_w + gap
+                    canvas.create_text(tx, cy, text=label, fill=LABEL_FG,
+                                       font=label_font, anchor="w")
+                    if hint:
+                        canvas.create_text(tx + lw + gap, cy, text=hint, fill=HINT_FG,
+                                           font=hint_font, anchor="w")
                 st.update(mode=mode, accent=accent, dim=_blend(accent, PILL_BG, 0.6),
                           phase=0.0)
                 root.update_idletasks()
