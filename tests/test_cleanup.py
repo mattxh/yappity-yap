@@ -23,7 +23,7 @@ def _capture_post(monkeypatch, response):
         calls.update(url=url, headers=headers, json=json, timeout=timeout)
         return response
 
-    monkeypatch.setattr("app.cleanup.requests.post", fake_post)
+    monkeypatch.setattr("app.net.post", fake_post)
     return calls
 
 
@@ -107,7 +107,7 @@ def test_clean_empty_input_makes_no_call(monkeypatch):
     def boom(*a, **k):
         raise AssertionError("should not call API for empty text")
 
-    monkeypatch.setattr("app.cleanup.requests.post", boom)
+    monkeypatch.setattr("app.net.post", boom)
     assert clean("   ", model="m", api_key="k", base_url="u") == ""
 
 
@@ -115,7 +115,7 @@ def test_clean_missing_key_raises_without_call(monkeypatch):
     def boom(*a, **k):
         raise AssertionError("should not call API without key")
 
-    monkeypatch.setattr("app.cleanup.requests.post", boom)
+    monkeypatch.setattr("app.net.post", boom)
     with pytest.raises(CleanupError):
         clean("hi", model="m", api_key="", base_url="u")
 
@@ -132,6 +132,6 @@ def test_clean_network_error_raises(monkeypatch):
     def fake_post(*a, **k):
         raise real_requests.ConnectionError("no net")
 
-    monkeypatch.setattr("app.cleanup.requests.post", fake_post)
+    monkeypatch.setattr("app.net.post", fake_post)
     with pytest.raises(CleanupError):
         clean("hi", model="m", api_key="k", base_url="u")

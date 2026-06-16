@@ -30,7 +30,7 @@ def test_transform_success(monkeypatch):
         calls.update(url=url, json=json)
         return FakeResponse(content="The quick brown fox.")
 
-    monkeypatch.setattr("app.command.requests.post", fake_post)
+    monkeypatch.setattr("app.net.post", fake_post)
     out = transform("the quick brown fox", "add a period", model="m",
                     api_key="k", base_url="https://api.openai.com/v1")
     assert out == "The quick brown fox."
@@ -41,13 +41,13 @@ def test_transform_noop_when_empty(monkeypatch):
     def boom(*a, **k):
         raise AssertionError("should not call API")
 
-    monkeypatch.setattr("app.command.requests.post", boom)
+    monkeypatch.setattr("app.net.post", boom)
     assert transform("", "do stuff", model="m", api_key="k", base_url="u") == ""
     assert transform("sel", "  ", model="m", api_key="k", base_url="u") == "sel"
 
 
 def test_transform_http_error_raises(monkeypatch):
-    monkeypatch.setattr("app.command.requests.post",
+    monkeypatch.setattr("app.net.post",
                         lambda *a, **k: FakeResponse(status_code=500, text="boom"))
     with pytest.raises(CommandError):
         transform("sel", "do", model="m", api_key="k", base_url="u")

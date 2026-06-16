@@ -26,7 +26,7 @@ def _capture_post(monkeypatch, response):
         calls.update(url=url, headers=headers, data=data, files=files, timeout=timeout)
         return response
 
-    monkeypatch.setattr("app.providers.openai_provider.requests.post", fake_post)
+    monkeypatch.setattr("app.net.post", fake_post)
     return calls
 
 
@@ -72,7 +72,7 @@ def test_network_error_is_retryable(monkeypatch):
     def fake_post(*a, **k):
         raise real_requests.ConnectionError("no net")
 
-    monkeypatch.setattr("app.providers.openai_provider.requests.post", fake_post)
+    monkeypatch.setattr("app.net.post", fake_post)
     p = OpenAIProvider(api_key="sk-test")
     with pytest.raises(TranscriptionError) as ei:
         p.transcribe(b"x", None, None)
@@ -114,7 +114,7 @@ def _capture_eleven_post(monkeypatch, response):
         calls.update(url=url, headers=headers, data=data, files=files, timeout=timeout)
         return response
 
-    monkeypatch.setattr("app.providers.elevenlabs_provider.requests.post", fake_post)
+    monkeypatch.setattr("app.net.post", fake_post)
     return calls
 
 

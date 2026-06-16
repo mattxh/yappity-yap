@@ -1,6 +1,7 @@
 """OpenAI-compatible /audio/transcriptions client (plain requests)."""
 import requests
 
+from .. import net
 from .base import TranscriptionError
 
 
@@ -21,7 +22,7 @@ class OpenAIProvider:
         if prompt:
             data["prompt"] = prompt
         try:
-            resp = requests.post(
+            resp = net.post(
                 f"{self.base_url}/audio/transcriptions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 data=data,

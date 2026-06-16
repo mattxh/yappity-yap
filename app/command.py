@@ -7,6 +7,8 @@ import logging
 
 import requests
 
+from . import net
+
 log = logging.getLogger(__name__)
 
 
@@ -39,7 +41,7 @@ def transform(selection: str, instruction: str, *, model, api_key, base_url,
     if not api_key:
         raise CommandError("API key not configured")
     try:
-        resp = requests.post(
+        resp = net.post(
             f"{base_url}/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
             json={"model": model, "messages": build_messages(selection, instruction),

@@ -7,6 +7,7 @@ does not matter: the OpenCC s2twp post-pass guarantees Traditional.
 """
 import requests
 
+from .. import net
 from .base import TranscriptionError
 
 
@@ -25,7 +26,7 @@ class ElevenLabsProvider:
         if language:
             data["language_code"] = language  # ISO-639-1 ("en", "zh") accepted
         try:
-            resp = requests.post(
+            resp = net.post(
                 f"{self.base_url}/speech-to-text",
                 headers={"xi-api-key": self.api_key},
                 data=data,

@@ -9,6 +9,8 @@ import re
 
 import requests
 
+from . import net
+
 log = logging.getLogger(__name__)
 
 _HAN = re.compile(r"[一-鿿㐀-䶿豈-﫿]")
@@ -108,7 +110,7 @@ def clean(text, *, model, api_key, base_url, style="balanced",
     messages = build_messages(text, style=style, dictionary=dictionary, language=language,
                               app_hint=app_hint, app_style=app_style)
     try:
-        resp = requests.post(
+        resp = net.post(
             f"{base_url}/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
             json={"model": model, "messages": messages, "temperature": 0},
