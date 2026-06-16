@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from . import appcontext, config as config_mod
-from . import (cleanup, command, costs, dashboard, history, inject, learn,
+from . import (cleanup, command, costs, dashboard, helppage, history, inject, learn,
                postprocess, prompt, textcmds, uia)
 from .config import get_api_key
 from .hotkey import ChordMachine, KeyboardHookAdapter
@@ -453,6 +453,26 @@ class App:
             self.notifier.toast(self.t("word_added", word=word))
         else:
             self.notifier.toast(self.t("word_exists", word=word))
+
+    def remove_word(self, word: str):
+        if config_mod.remove_word(self.cfg, word):
+            config_mod.save_config(self.cfg, self.cfg_path)
+            self.notifier.toast(self.t("word_removed", word=word))
+
+    def dictionary_words(self):
+        cu = self.cfg.get("cleanup", {})
+        auto = {w.lower() for w in cu.get("auto_learned", [])}
+        return [(w, w.lower() in auto) for w in cu.get("dictionary", [])]
+
+    def open_help(self):
+        html = helppage.render_help(self.cfg.get("hotkey", "ctrl+windows"),
+                                    self.cfg.get("command_hotkey", "alt+windows"))
+        out = history.HISTORY_PATH.with_name("help.html")
+        try:
+            out.write_text(html, encoding="utf-8")
+            os.startfile(out)
+        except OSError:
+            log.exception("could not open help")
 
     def open_config(self):
         if not Path(self.cfg_path).exists():

@@ -61,6 +61,19 @@ def test_add_word_empty_is_noop():
     assert config.add_word(cfg, "") is False
 
 
+def test_remove_word_from_dictionary_and_auto():
+    cfg = {"cleanup": {"dictionary": ["Anthropic", "Adithya"], "auto_learned": ["Adithya"]}}
+    assert config.remove_word(cfg, "adithya") is True   # case-insensitive
+    assert cfg["cleanup"]["dictionary"] == ["Anthropic"]
+    assert cfg["cleanup"]["auto_learned"] == []
+
+
+def test_remove_word_absent_is_noop():
+    cfg = {"cleanup": {"dictionary": ["Anthropic"]}}
+    assert config.remove_word(cfg, "nope") is False
+    assert cfg["cleanup"]["dictionary"] == ["Anthropic"]
+
+
 def test_cleanup_defaults_and_merge(tmp_path):
     import json as _json
 

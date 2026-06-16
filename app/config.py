@@ -111,6 +111,23 @@ def add_word(cfg: dict, word: str) -> bool:
     return True
 
 
+def remove_word(cfg: dict, word: str) -> bool:
+    """Remove a word from cleanup.dictionary and cleanup.auto_learned (case-insensitive).
+    Returns True if anything was removed. Mutates cfg in place."""
+    word = (word or "").strip().lower()
+    if not word:
+        return False
+    cu = cfg.setdefault("cleanup", {})
+    removed = False
+    for key in ("dictionary", "auto_learned"):
+        lst = cu.get(key, [])
+        kept = [w for w in lst if str(w).lower() != word]
+        if len(kept) != len(lst):
+            cu[key] = kept
+            removed = True
+    return removed
+
+
 def get_cleanup_api_key(cfg: dict) -> str:
     """Cleanup key: explicit cleanup.api_key, else the OpenAI key (file or env)."""
     key = cfg.get("cleanup", {}).get("api_key", "")

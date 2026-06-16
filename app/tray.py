@@ -79,6 +79,16 @@ def run_tray(app, on_ready=None):
             items.append(Item(preview, (lambda tx: lambda: app.reinsert(tx))(text)))
         return Menu(*items)
 
+    def remove_menu():
+        words = app.dictionary_words()   # [(word, is_auto), ...]
+        if not words:
+            return Menu(Item(lambda item: t("no_words"), None, enabled=False))
+        items = []
+        for word, is_auto in words[:30]:
+            label = word + (f"  ({t('auto_tag')})" if is_auto else "")
+            items.append(Item(label, (lambda w: lambda: (app.remove_word(w), rebuild()))(word)))
+        return Menu(*items)
+
     def toggle_startup():
         try:
             if startup.is_installed():
@@ -132,11 +142,13 @@ def run_tray(app, on_ready=None):
             Menu.SEPARATOR,
             Item(lambda item: t("recent"), recent_menu()),
             Item(lambda item: t("add_word"), lambda: app.add_word()),
+            Item(lambda item: t("remove_word"), remove_menu()),
             Item(lambda item: t("dashboard"), lambda: app.open_dashboard()),
             Item(lambda item: t("stats"), lambda: app.show_stats()),
             Item(lambda item: t("retry_last"), lambda: app.retry_last()),
             Item(lambda item: t("open_history"), lambda: app.open_history()),
             Item(lambda item: t("open_config"), lambda: app.open_config()),
+            Item(lambda item: t("help"), lambda: app.open_help()),
             Item(lambda item: t("start_with_windows"), toggle_startup,
                  checked=lambda item: startup.is_installed()),
             Item(lambda item: t("desktop_shortcut"), toggle_desktop,
