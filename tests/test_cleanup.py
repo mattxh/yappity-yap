@@ -1,7 +1,7 @@
 import pytest
 
 from app import cleanup
-from app.cleanup import CleanupError, build_messages, clean
+from app.cleanup import CleanupError, build_messages, clean, preserves_language
 
 
 class FakeResponse:
@@ -62,6 +62,24 @@ def test_build_messages_language_hint():
     auto = build_messages("x", style="balanced", dictionary=[], language="auto")
     # auto must not pin a language ("The text is in ...")
     assert "The text is in" not in auto[0]["content"]
+
+
+def test_preserves_language_flags_english_to_chinese():
+    # the reported bug: English transcript turned into Chinese
+    assert preserves_language("let's meet at noon tomorrow", "我們明天中午見面") is False
+
+
+def test_preserves_language_keeps_english():
+    assert preserves_language("lets meet at noon", "Let's meet at noon.") is True
+
+
+def test_preserves_language_keeps_chinese():
+    assert preserves_language("今天天气很好", "今天天氣很好。") is True
+
+
+def test_preserves_language_keeps_mixed_codeswitch():
+    # English+Chinese mix should not be seen as a language flip
+    assert preserves_language("用 VSCode 寫程式", "用 VSCode 寫程式。") is True
 
 
 def test_clean_success(monkeypatch):

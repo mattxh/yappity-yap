@@ -5,14 +5,31 @@ expose. Cleanup is enhancement only — callers fall back to the raw transcript 
 CleanupError, so this never blocks output.
 """
 import logging
+import re
 
 import requests
 
 log = logging.getLogger(__name__)
 
+_HAN = re.compile(r"[一-鿿㐀-䶿豈-﫿]")
+_LATIN = re.compile(r"[A-Za-z]")
+
 
 class CleanupError(Exception):
     pass
+
+
+def _han_ratio(text: str) -> float:
+    han = len(_HAN.findall(text))
+    latin = len(_LATIN.findall(text))
+    base = han + latin
+    return han / base if base else 0.0
+
+
+def preserves_language(before: str, after: str, max_shift: float = 0.5) -> bool:
+    """True unless cleanup flipped the language (e.g. English -> Chinese). Compares
+    the Han / (Han+Latin) character ratio; a large swing means a translation."""
+    return abs(_han_ratio(after) - _han_ratio(before)) <= max_shift
 
 
 STYLE_RULES = {
@@ -49,7 +66,10 @@ _CONSTRAINTS = (
 
 _LANG_HINT = {
     "en": "The text is in English.",
-    "zh": "The text is in Mandarin Chinese; output Traditional Chinese.",
+    # NB: must NOT command Chinese output — that would translate English input.
+    # It only governs script (Traditional vs Simplified) for text already Chinese.
+    "zh": "If the text is in Chinese, write it in Traditional Chinese characters "
+          "(Taiwan), never Simplified. Do not translate non-Chinese text.",
 }
 
 

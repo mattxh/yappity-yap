@@ -76,10 +76,11 @@ def test_maybe_cleanup_empty_text_returns_raw(monkeypatch):
 
 def test_build_transcription_prompt(monkeypatch):
     fake = types.SimpleNamespace(cfg={"cleanup": {"dictionary": ["Foo", "Bar"]}})
-    # zh adds the Traditional prompt AND the vocabulary line
+    # vocabulary is included, but NO forced-Chinese directive (that translated English)
     p_zh = App._build_transcription_prompt(fake, "zh")
-    assert "繁體" in p_zh
     assert "Foo" in p_zh and "Bar" in p_zh
-    # auto with empty dictionary -> None
+    assert "繁體" not in p_zh
+    # empty dictionary -> nothing to send, in any language
     fake_empty = types.SimpleNamespace(cfg={"cleanup": {"dictionary": []}})
+    assert App._build_transcription_prompt(fake_empty, "zh") is None
     assert App._build_transcription_prompt(fake_empty, "auto") is None

@@ -29,7 +29,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 LAST_RECORDING = PROJECT_ROOT / "last_recording.wav"
 LOG_PATH = PROJECT_ROOT / "app.log"
 SINGLE_INSTANCE_PORT = 50517
-ZH_PROMPT = "請用繁體中文輸出。"
 WAV_HEADER_BYTES = 44
 BYTES_PER_SECOND = 32000  # 16 kHz * 2 bytes
 
@@ -318,13 +317,13 @@ class App:
                 return None
 
     def _build_transcription_prompt(self, lang):
-        parts = []
-        if lang == "zh":
-            parts.append(ZH_PROMPT)
+        # Note: do NOT inject a "output Chinese" directive for lang=='zh' — that
+        # translated English speech. language='zh' biases Mandarin recognition and
+        # OpenCC guarantees Traditional output downstream.
         terms = self.cfg.get("cleanup", {}).get("dictionary", [])
         if terms:
-            parts.append("Vocabulary: " + ", ".join(terms) + ".")
-        return " ".join(parts) if parts else None
+            return "Vocabulary: " + ", ".join(terms) + "."
+        return None
 
     def _maybe_cleanup(self, text, lang):
         cu = self.cfg.get("cleanup", {})
@@ -338,7 +337,7 @@ class App:
                 styles = list(cu.get("app_styles", [])) + appcontext.DEFAULT_APP_STYLES
                 app_style = appcontext.match_style(styles, proc, title)
         try:
-            return cleanup.clean(
+            cleaned = cleanup.clean(
                 text,
                 model=cu.get("model", "gpt-4o-mini"),
                 api_key=config_mod.get_cleanup_api_key(self.cfg),
@@ -352,6 +351,12 @@ class App:
         except cleanup.CleanupError as e:
             log.warning("cleanup failed, using raw transcript: %s", e)
             return text
+        if not cleaned.strip():
+            return text
+        if not cleanup.preserves_language(text, cleaned):
+            log.warning("cleanup changed the language; keeping the raw transcript")
+            return text
+        return cleaned
 
     # -- tray actions (tray thread) --------------------------------------------
 
