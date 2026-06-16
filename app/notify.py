@@ -16,17 +16,18 @@ log = logging.getLogger(__name__)
 
 SAMPLERATE = 44100
 
-# Two-note chimes (freq Hz, duration s). Rising = start, falling = stop, etc.
+# Two-note chimes (freq Hz, duration s). Lower register + quieter than before for a
+# softer, more muted feel. Rising = start, falling = stop, etc.
 _CHIMES = {
-    "start": [(523.25, 0.085), (659.25, 0.085)],   # C5 -> E5, gentle rise
-    "stop": [(659.25, 0.085), (523.25, 0.085)],    # E5 -> C5, gentle fall
-    "cancel": [(440.0, 0.07), (392.0, 0.11)],      # A4 -> G4, soft dismiss
-    "error": [(293.66, 0.10), (293.66, 0.14)],     # D4 x2, low and calm
+    "start": [(392.00, 0.10), (523.25, 0.10)],     # G4 -> C5, soft rise
+    "stop": [(523.25, 0.10), (392.00, 0.10)],      # C5 -> G4, soft fall
+    "cancel": [(392.00, 0.08), (329.63, 0.12)],    # G4 -> E4, soft dismiss
+    "error": [(293.66, 0.12), (293.66, 0.16)],     # D4 x2, low and calm
 }
 
 
 def synth_wav(segments, samplerate: int = SAMPLERATE,
-              volume: float = 0.30, fade_ms: int = 12) -> bytes:
+              volume: float = 0.18, fade_ms: int = 24) -> bytes:
     """Render a sequence of (freq_hz, duration_s) sine segments to WAV bytes.
 
     Each segment gets a linear fade-in/out (fade_ms per side) to avoid click

@@ -23,15 +23,20 @@ PILL_BG = "#1c1c20"
 BORDER = "#3a3a40"
 LABEL_FG = "#f4f4f5"
 HINT_FG = "#86868f"
-ACCENTS = {"recording": "#f4796f", "transcribing": "#f0a83a", "command": "#9b8cff"}
-WAVE_MODES = ("recording", "command")   # show the live waveform (else a dot)
+ACCENTS = {"recording": "#f4796f", "transcribing": "#ffd24a", "command": "#9b8cff"}
+WAVE_MODES = ("recording", "command")   # show the live waveform (else dots)
 LEADING_GLYPHS = ("● ", "✍ ")
 
-# Waveform bars: distinct speeds/phase offsets so the motion looks lively.
-_BAR_SPEEDS = (1.0, 1.7, 1.3, 1.9, 1.15, 1.5)
-_BAR_OFFSETS = (0.0, 1.1, 2.2, 0.6, 1.7, 3.0)
-_BAR_SHAPE = (0.55, 0.8, 1.0, 1.0, 0.8, 0.55)   # center-weighted waveform profile
-_N_BARS = 6
+_N_BARS = 11        # wider waveform array for the recording state
+_N_DOTS = 5         # transcribing: a wave of small dots
+
+
+def _bar_params(i: int, n: int):
+    """Per-bar (speed, phase offset, center-weighted shape) for the waveform."""
+    shape = 0.4 + 0.6 * math.sin(math.pi * (i + 0.5) / n)
+    speed = 1.0 + 0.15 * (i % 5)
+    offset = i * 0.8
+    return speed, offset, shape
 
 
 def _blend(c1: str, c2: str, t: float) -> str:
@@ -87,8 +92,8 @@ class Overlay:
             label_font = tkfont.Font(family="Segoe UI", size=-s(12))
             hint_font = tkfont.Font(family="Segoe UI", size=-s(10))
             st = {"mode": None, "accent": "#9aa0a6", "dim": PILL_BG, "dot": None,
-                  "bars": [], "cy": 0, "hmin": 0, "hmax": 0, "phase": 0.0,
-                  "lvl": 0.0, "visible": False}
+                  "dots": [], "bars": [], "cy": 0, "hmin": 0, "hmax": 0, "dr": 0,
+                  "phase": 0.0, "lvl": 0.0, "visible": False}
 
             def round_rect(x1, y1, x2, y2, r, **kw):
                 pts = [x1 + r, y1, x2 - r, y1, x2, y1, x2, y1 + r, x2, y2 - r, x2, y2,
@@ -97,7 +102,7 @@ class Overlay:
 
             def build(text, mode):
                 canvas.delete("all")
-                st["bars"], st["dot"] = [], None
+                st["bars"], st["dot"], st["dots"] = [], None, []
                 accent = ACCENTS.get(mode, "#9aa0a6")
                 for g in LEADING_GLYPHS:
                     if text.startswith(g):
@@ -105,8 +110,14 @@ class Overlay:
                         break
                 label, hint = (text.split(" — ", 1) + [""])[:2]
                 pad, gap, h = s(12), s(8), s(30)
-                bar_w, bar_gap = s(3), s(3)
-                ind_w = (_N_BARS * bar_w + (_N_BARS - 1) * bar_gap) if mode in WAVE_MODES else s(9)
+                bar_w, bar_gap = s(3), s(4)        # wider gap -> wider waveform array
+                dot_r, dot_step = s(2), s(7)
+                if mode in WAVE_MODES:
+                    ind_w = _N_BARS * bar_w + (_N_BARS - 1) * bar_gap
+                elif mode == "transcribing":
+                    ind_w = (_N_DOTS - 1) * dot_step + 2 * dot_r
+                else:
+                    ind_w = s(9)
                 lw = label_font.measure(label)
                 hw = hint_font.measure(hint) if hint else 0
                 w = pad + ind_w + gap + lw + ((gap + hw) if hint else 0) + pad
@@ -117,12 +128,21 @@ class Overlay:
                 if mode in WAVE_MODES:
                     x = pad + bar_w // 2
                     for i in range(_N_BARS):
+                        sp, off, shape = _bar_params(i, _N_BARS)
                         bid = canvas.create_line(x, cy - s(3), x, cy + s(3),
                                                  fill=accent, width=bar_w, capstyle="round")
-                        st["bars"].append({"id": bid, "x": x, "sp": _BAR_SPEEDS[i],
-                                           "off": _BAR_OFFSETS[i], "shape": _BAR_SHAPE[i]})
+                        st["bars"].append({"id": bid, "x": x, "sp": sp, "off": off,
+                                           "shape": shape})
                         x += bar_w + bar_gap
                     st.update(cy=cy, hmin=s(1), hmax=s(9), lvl=0.0)
+                elif mode == "transcribing":
+                    x = pad + dot_r
+                    for i in range(_N_DOTS):
+                        did = canvas.create_oval(x - dot_r, cy - dot_r, x + dot_r, cy + dot_r,
+                                                 fill=accent, outline="")
+                        st["dots"].append({"id": did, "x": x, "off": i * 0.7})
+                        x += dot_step
+                    st.update(cy=cy, dr=dot_r)
                 else:
                     dr = s(4)
                     st["dot"] = canvas.create_oval(pad, cy - dr, pad + 2 * dr, cy + dr,
@@ -163,6 +183,15 @@ class Overlay:
                             frac = min(1.0, lvl * b["shape"] * wig)
                             hh = hmin + (hmax - hmin) * frac
                             canvas.coords(b["id"], b["x"], cy - hh, b["x"], cy + hh)
+                    elif st["dots"]:
+                        cy, dr = st["cy"], st["dr"]
+                        for d in st["dots"]:
+                            ph = st["phase"] * 1.6 + d["off"]
+                            bri = 0.5 + 0.5 * math.sin(ph)        # brightness wave
+                            bob = -math.sin(ph) * dr              # small vertical bob
+                            canvas.coords(d["id"], d["x"] - dr, cy + bob - dr,
+                                          d["x"] + dr, cy + bob + dr)
+                            canvas.itemconfig(d["id"], fill=_blend(st["dim"], st["accent"], bri))
                     elif st["dot"] is not None:
                         t = (1 + math.sin(st["phase"])) / 2
                         canvas.itemconfig(st["dot"], fill=_blend(st["accent"], st["dim"], 1 - t))
