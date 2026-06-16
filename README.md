@@ -100,7 +100,9 @@ junk, and learning happens the next time you dictate in the same field.
 
 A word is only promoted into the dictionary after you've made the **same rewrite more
 than twice** (the 3rd time) — set the threshold with `learn.promote_after`. Words seen
-once or twice show up under **Pending corrections** in the dashboard.
+once or twice show up under **Pending corrections** in the dashboard. When a word is
+auto-added, a notice appears after that dictation — "Added 'X' automatically" — with an
+**Undo** button and an **✕** to dismiss (it also auto-dismisses after a few seconds).
 
 ## Dashboard
 

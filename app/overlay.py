@@ -65,6 +65,11 @@ class Overlay:
         if self.enabled:
             self._q.put(("close", None, None))
 
+    def notice(self, text: str, undo_label: str, on_undo):
+        """Show a clickable notice with an Undo button and a dismiss (✕)."""
+        if self.enabled:
+            self._q.put(("notice", text, (undo_label, on_undo)))
+
     # -- overlay thread -------------------------------------------------------
 
     def _run(self):
@@ -93,7 +98,22 @@ class Overlay:
             hint_font = tkfont.Font(family="Segoe UI", size=-s(10))
             st = {"mode": None, "accent": "#9aa0a6", "dim": PILL_BG, "dot": None,
                   "dots": [], "bars": [], "cy": 0, "hmin": 0, "hmax": 0, "dr": 0,
-                  "phase": 0.0, "lvl": 0.0, "visible": False}
+                  "phase": 0.0, "lvl": 0.0, "visible": False,
+                  "notice_undo": None, "undo_box": None, "close_box": None,
+                  "notice_timer": None}
+
+            def clear_notice():
+                if st["notice_timer"]:
+                    try:
+                        root.after_cancel(st["notice_timer"])
+                    except Exception:
+                        pass
+                    st["notice_timer"] = None
+                try:
+                    canvas.unbind("<Button-1>")
+                except Exception:
+                    pass
+                st["notice_undo"] = st["undo_box"] = st["close_box"] = None
 
             def round_rect(x1, y1, x2, y2, r, **kw):
                 pts = [x1 + r, y1, x2 - r, y1, x2, y1, x2, y1 + r, x2, y2 - r, x2, y2,
@@ -101,6 +121,7 @@ class Overlay:
                 return canvas.create_polygon(pts, smooth=True, **kw)
 
             def build(text, mode):
+                clear_notice()
                 canvas.delete("all")
                 st["bars"], st["dot"], st["dots"] = [], None, []
                 accent = ACCENTS.get(mode, "#9aa0a6")
@@ -202,6 +223,66 @@ class Overlay:
                         canvas.itemconfig(st["dot"], fill=_blend(st["accent"], st["dim"], 1 - t))
                 root.after(33, animate)
 
+            def hide_notice():
+                clear_notice()
+                st["mode"] = None
+                st["visible"] = False
+                root.withdraw()
+
+            def on_notice_click(event):
+                ub, cb = st.get("undo_box"), st.get("close_box")
+                if ub and ub[0] <= event.x <= ub[1]:
+                    cb_fn = st.get("notice_undo")
+                    hide_notice()
+                    if cb_fn:
+                        try:
+                            cb_fn()
+                        except Exception:
+                            log.debug("undo callback failed", exc_info=True)
+                elif cb and cb[0] <= event.x <= cb[1]:
+                    hide_notice()
+
+            def build_notice(text, undo_label, on_undo):
+                clear_notice()
+                canvas.delete("all")
+                st["bars"], st["dot"], st["dots"] = [], None, []
+                st.update(mode="notice", visible=False, notice_undo=on_undo)
+                pad, gap, h, bp = s(12), s(9), s(32), s(8)
+                lw = label_font.measure(text)
+                cw = label_font.measure("✓")
+                uw = label_font.measure(undo_label)
+                xw = label_font.measure("✕")
+                w = pad + cw + gap + lw + gap + (uw + 2 * bp) + gap + xw + pad
+                canvas.config(width=w, height=h)
+                round_rect(s(1), s(1), w - s(1), h - s(1), (h - s(2)) // 2,
+                           fill=PILL_BG, outline=BORDER, width=max(1, s(1)))
+                cy = h // 2
+                cx = pad
+                canvas.create_text(cx, cy, text="✓", fill="#5dcaa5",
+                                   font=label_font, anchor="w")
+                cx += cw + gap
+                canvas.create_text(cx, cy, text=text, fill=LABEL_FG,
+                                   font=label_font, anchor="w")
+                cx += lw + gap
+                ux1, ux2 = cx, cx + uw + 2 * bp
+                round_rect(ux1, cy - s(9), ux2, cy + s(9), s(9), fill="#34343c", outline="")
+                canvas.create_text((ux1 + ux2) // 2, cy, text=undo_label,
+                                   fill="#9bd3ff", font=label_font, anchor="center")
+                st["undo_box"] = (ux1, ux2)
+                cx = ux2 + gap
+                canvas.create_text(cx, cy, text="✕", fill=HINT_FG,
+                                   font=label_font, anchor="w")
+                st["close_box"] = (cx - s(4), cx + xw + s(6))
+                root.update_idletasks()
+                sx = (root.winfo_screenwidth() - w) // 2
+                sy = root.winfo_screenheight() - s(96)
+                root.geometry(f"{w}x{h}+{sx}+{sy}")
+                root.deiconify()
+                root.attributes("-topmost", True)
+                self._apply_exstyles(root, clickthrough=False)   # must receive clicks
+                canvas.bind("<Button-1>", on_notice_click)
+                st["notice_timer"] = root.after(9000, hide_notice)
+
             def poll():
                 try:
                     while True:
@@ -212,6 +293,8 @@ class Overlay:
                         elif cmd == "hide":
                             st["visible"] = False
                             root.withdraw()
+                        elif cmd == "notice":
+                            build_notice(text, mode[0], mode[1])
                         elif cmd == "close":
                             root.destroy()
                             return
@@ -227,13 +310,16 @@ class Overlay:
             log.exception("overlay thread died (app continues without overlay)")
 
     @staticmethod
-    def _apply_exstyles(root):
+    def _apply_exstyles(root, clickthrough=True):
         try:
             import ctypes
 
             hwnd = ctypes.windll.user32.GetParent(root.winfo_id()) or root.winfo_id()
             style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-            style |= WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW
+            style &= ~(WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW)
+            style |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW   # never steal focus
+            if clickthrough:
+                style |= WS_EX_TRANSPARENT                  # else clicks pass through
             ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style)
         except Exception:
             log.debug("exstyle apply failed", exc_info=True)
@@ -249,4 +335,7 @@ class NullOverlay:
         pass
 
     def close(self):
+        pass
+
+    def notice(self, text, undo_label, on_undo):
         pass

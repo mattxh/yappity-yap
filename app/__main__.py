@@ -82,6 +82,7 @@ class App:
         self.set_tray_state = lambda state: None  # replaced by tray.run_tray
         self.on_history_changed = lambda: None    # replaced by tray (refresh Recent)
         self._pending_learn = None   # (inserted_text, field_snapshot) for auto-learn
+        self._just_learned = None    # terms promoted this run -> flagged after the pipeline
         self._gate = JobGate()   # serializes jobs + owns the auto-stop timer
         self._cmd_recording = False
         self._cmd_selection = ""
@@ -238,6 +239,9 @@ class App:
                 self._finish_ui()
                 self.machine.pipeline_done()
                 self._gate.end()
+            if self._just_learned:                       # flag after the overlay clears
+                terms, self._just_learned = self._just_learned, None
+                self._flag_learned(terms)
 
     def _transcribe_and_insert(self, wav: bytes):
         self._consume_pending_learn()   # learn from edits made since the last paste
@@ -317,7 +321,20 @@ class App:
         config_mod.save_config(self.cfg, self.cfg_path)
         log.info("promoted to dictionary after repeated rewrites: %s", promoted)
         if lc.get("notify", True):
-            self.notifier.toast(self.t("learned", terms=", ".join(promoted)))
+            self._just_learned = promoted   # flagged after the pipeline (notice + undo)
+
+    def _flag_learned(self, terms):
+        text = self.t("learned_notice", terms=", ".join(terms))
+        if self.cfg.get("show_overlay", True):
+            self.overlay.notice(text, self.t("undo"), lambda: self._undo_learned(terms))
+        else:
+            self.notifier.toast(text)
+
+    def _undo_learned(self, terms):
+        changed = any(config_mod.remove_word(self.cfg, t) for t in terms)
+        if changed:
+            config_mod.save_config(self.cfg, self.cfg_path)
+            self.notifier.toast(self.t("learned_undone", terms=", ".join(terms)))
 
     def _transcribe_with_retry(self, wav, language, prompt):
         for attempt in (1, 2):
