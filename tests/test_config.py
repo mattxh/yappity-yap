@@ -43,6 +43,24 @@ def test_bad_json_falls_back_to_defaults(tmp_path):
     assert cfg["provider"] == "openai"
 
 
+def test_add_word_appends_new():
+    cfg = {"cleanup": {"dictionary": []}}
+    assert config.add_word(cfg, "Anthropic") is True
+    assert cfg["cleanup"]["dictionary"] == ["Anthropic"]
+
+
+def test_add_word_dedup_case_insensitive():
+    cfg = {"cleanup": {"dictionary": ["Anthropic"]}}
+    assert config.add_word(cfg, "  anthropic ") is False
+    assert cfg["cleanup"]["dictionary"] == ["Anthropic"]
+
+
+def test_add_word_empty_is_noop():
+    cfg = {}
+    assert config.add_word(cfg, "   ") is False
+    assert config.add_word(cfg, "") is False
+
+
 def test_cleanup_defaults_and_merge(tmp_path):
     import json as _json
 

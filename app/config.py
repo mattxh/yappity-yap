@@ -98,6 +98,19 @@ def get_api_key(cfg: dict, provider: str) -> str:
     return os.environ.get(ENV_KEYS.get(provider, ""), "")
 
 
+def add_word(cfg: dict, word: str) -> bool:
+    """Add a word to cleanup.dictionary (case-insensitive dedup). Returns True if added.
+    Mutates cfg in place; caller persists with save_config."""
+    word = (word or "").strip()
+    if not word:
+        return False
+    dic = cfg.setdefault("cleanup", {}).setdefault("dictionary", [])
+    if any(str(w).lower() == word.lower() for w in dic):
+        return False
+    dic.append(word)
+    return True
+
+
 def get_cleanup_api_key(cfg: dict) -> str:
     """Cleanup key: explicit cleanup.api_key, else the OpenAI key (file or env)."""
     key = cfg.get("cleanup", {}).get("api_key", "")

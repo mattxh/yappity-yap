@@ -13,7 +13,7 @@ from pathlib import Path
 
 from . import appcontext, config as config_mod
 from . import (cleanup, command, costs, dashboard, history, inject, learn,
-               postprocess, textcmds, uia)
+               postprocess, prompt, textcmds, uia)
 from .config import get_api_key
 from .hotkey import ChordMachine, KeyboardHookAdapter
 from .i18n import tr
@@ -442,6 +442,17 @@ class App:
     def set_cleanup_style(self, style: str):
         self.cfg.setdefault("cleanup", {})["style"] = style
         config_mod.save_config(self.cfg, self.cfg_path)
+
+    def add_word(self):
+        """Tray 'Add word…': prompt for a word and add it to the dictionary live."""
+        word = prompt.ask_text(self.t("add_word_prompt"), title="VoiceToText")
+        if not word:
+            return
+        if config_mod.add_word(self.cfg, word):
+            config_mod.save_config(self.cfg, self.cfg_path)
+            self.notifier.toast(self.t("word_added", word=word))
+        else:
+            self.notifier.toast(self.t("word_exists", word=word))
 
     def open_config(self):
         if not Path(self.cfg_path).exists():

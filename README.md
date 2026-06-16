@@ -82,9 +82,10 @@ and is **on by default**.
 
 ### Custom vocabulary
 
-Add names, jargon, product names, or colleagues' names to `config.json` →
-`cleanup.dictionary` (e.g. `["Adithya", "Anthropic", "Kubernetes"]`). These bias both
-the transcription and the cleanup pass toward spelling them correctly.
+The easy way: tray → **Add word…**, type a word (a name, jargon, a product name), and
+it's added to your dictionary **immediately** — no restart. Or edit `config.json` →
+`cleanup.dictionary` directly (e.g. `["Adithya", "Anthropic", "Kubernetes"]`) and restart.
+Dictionary words bias both transcription and the cleanup pass toward spelling them right.
 
 ### Auto-learning the dictionary (opt-in)
 
@@ -152,8 +153,9 @@ key, and `cleanup.model` to e.g. `llama-3.3-70b-versatile`.
 
 Right-click the tray icon for: **Clean up text** toggle · **Cleanup style** (light/
 balanced/heavy) · **Language** · **Provider** (OpenAI/ElevenLabs/Groq — switches live) ·
-**UI language** · **Recent** (last 8 dictations — click to re-insert) · **Dashboard**
-(dictionary, cost/usage, trends) · **Usage stats** · **Retry last recording** ·
+**UI language** · **Recent** (last 8 dictations — click to re-insert) · **Add word…**
+(add to your dictionary live) · **Dashboard** (dictionary, cost/usage, trends) ·
+**Usage stats** · **Retry last recording** ·
 **Open history** (searchable browser view) · **Open config** · **Start with Windows** ·
 **Desktop shortcut** · **Quit**.
 
