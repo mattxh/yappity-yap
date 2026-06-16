@@ -96,6 +96,24 @@ their text — there it simply does nothing). It learns conservatively (close
 single-word fixes only, skipping common words) so it won't fill your dictionary with
 junk, and learning happens the next time you dictate in the same field.
 
+A word is only promoted into the dictionary after you've made the **same rewrite more
+than twice** (the 3rd time) — set the threshold with `learn.promote_after`. Words seen
+once or twice show up under **Pending corrections** in the dashboard.
+
+## Dashboard
+
+Tray → **Dashboard** opens an offline HTML page in your browser showing:
+
+- your **dictionary**, split into **Saved** (you added) and **Auto-added** (learned);
+- **cost & usage by day** (estimated cost, dictations, words — last 14 days);
+- **trends** — language split (English/Mandarin/mixed), average words per dictation,
+  busiest day, total time saved;
+- **pending corrections** — words you've rewritten once/twice that are close to being
+  learned.
+
+Cost is an *estimate* (audio minutes × the model's per-minute rate), not your real
+invoice.
+
 ### Cleanup style
 
 `config.json` → `cleanup.style`: `light` (punctuation + fillers only, nearly verbatim),
@@ -134,9 +152,10 @@ key, and `cleanup.model` to e.g. `llama-3.3-70b-versatile`.
 
 Right-click the tray icon for: **Clean up text** toggle · **Cleanup style** (light/
 balanced/heavy) · **Language** · **Provider** (OpenAI/ElevenLabs/Groq — switches live) ·
-**UI language** · **Recent** (last 8 dictations — click to re-insert) · **Usage stats**
-(dictations, words, time saved) · **Retry last recording** · **Open history** (searchable
-browser view) · **Open config** · **Start with Windows** · **Quit**.
+**UI language** · **Recent** (last 8 dictations — click to re-insert) · **Dashboard**
+(dictionary, cost/usage, trends) · **Usage stats** · **Retry last recording** ·
+**Open history** (searchable browser view) · **Open config** · **Start with Windows** ·
+**Desktop shortcut** · **Quit**.
 
 Near-silent recordings are skipped before hitting the API (no wasted cost) — tune the
 sensitivity with `silence_threshold` in config.json (`0` disables it).

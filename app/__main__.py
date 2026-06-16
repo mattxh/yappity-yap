@@ -12,7 +12,8 @@ import time
 from pathlib import Path
 
 from . import appcontext, config as config_mod
-from . import cleanup, command, costs, history, inject, learn, postprocess, textcmds, uia
+from . import (cleanup, command, costs, dashboard, history, inject, learn,
+               postprocess, textcmds, uia)
 from .config import get_api_key
 from .hotkey import ChordMachine, KeyboardHookAdapter
 from .i18n import tr
@@ -403,6 +404,20 @@ class App:
             os.startfile(out)
         except OSError:
             log.exception("could not open history")
+
+    def open_dashboard(self):
+        entries = history.read_entries(history.HISTORY_PATH)
+        cu = self.cfg.get("cleanup", {})
+        corrections = learn.load_corrections(CORRECTIONS_PATH)
+        html = dashboard.render_dashboard(
+            entries, cu.get("dictionary", []), cu.get("auto_learned", []), corrections,
+            promote_after=self.cfg.get("learn", {}).get("promote_after", 2))
+        out = history.HISTORY_PATH.with_name("dashboard.html")
+        try:
+            out.write_text(html, encoding="utf-8")
+            os.startfile(out)
+        except OSError:
+            log.exception("could not open dashboard")
 
     def recent_entries(self, n: int = 8):
         return history.tail(history.HISTORY_PATH, n)

@@ -131,6 +131,7 @@ def run_tray(app, on_ready=None):
             )),
             Menu.SEPARATOR,
             Item(lambda item: t("recent"), recent_menu()),
+            Item(lambda item: t("dashboard"), lambda: app.open_dashboard()),
             Item(lambda item: t("stats"), lambda: app.show_stats()),
             Item(lambda item: t("retry_last"), lambda: app.retry_last()),
             Item(lambda item: t("open_history"), lambda: app.open_history()),
