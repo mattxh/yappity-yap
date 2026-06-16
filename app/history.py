@@ -10,16 +10,20 @@ log = logging.getLogger(__name__)
 HISTORY_PATH = Path(__file__).resolve().parent.parent / "history.jsonl"
 
 _LATIN_WORD = re.compile(r"[A-Za-z0-9]+")
+_LATIN_CH = re.compile(r"[A-Za-z]")
 _CJK = re.compile(r"[一-鿿㐀-䶿豈-﫿]")
 
 
-def append_entry(path: Path, lang: str, duration_s: float, text: str) -> None:
+def append_entry(path: Path, lang: str, duration_s: float, text: str,
+                 cost: float = 0.0, model: str = "") -> None:
     entry = {
         "ts": datetime.datetime.now().isoformat(timespec="seconds"),
         "lang": lang,
         "duration_s": round(duration_s, 2),
         "chars": len(text),
         "text": text,
+        "cost": round(cost, 6),
+        "model": model,
     }
     try:
         with open(path, "a", encoding="utf-8") as f:
@@ -56,6 +60,15 @@ def word_count(text: str) -> int:
     return len(_LATIN_WORD.findall(text)) + len(_CJK.findall(text))
 
 
+def _entry_cost(entry: dict) -> float:
+    cost = entry.get("cost")
+    if cost is None:
+        from . import costs
+        cost = costs.estimate_cost(float(entry.get("duration_s", 0) or 0),
+                                   entry.get("model", ""), cleanup=False)
+    return float(cost or 0)
+
+
 def stats(entries: list) -> dict:
     words = sum(word_count(e.get("text", "")) for e in entries)
     seconds = sum(float(e.get("duration_s", 0) or 0) for e in entries)
@@ -66,7 +79,39 @@ def stats(entries: list) -> dict:
         "words": words,
         "audio_seconds": round(seconds, 1),
         "time_saved_min": round(saved_min, 1),
+        "cost": round(sum(_entry_cost(e) for e in entries), 4),
     }
+
+
+def classify_language(text: str) -> str:
+    """Rough content language: 'zh', 'en', or 'mixed' (for the language-split trend)."""
+    han = len(_CJK.findall(text))
+    latin = len(_LATIN_CH.findall(text))
+    base = han + latin
+    if base == 0:
+        return "en"
+    ratio = han / base
+    if ratio > 0.6:
+        return "zh"
+    if ratio < 0.1:
+        return "en"
+    return "mixed"
+
+
+def daily_stats(entries: list) -> list:
+    """Per-day {date, dictations, words, cost, audio_s}, sorted by date ascending."""
+    by_date: dict = {}
+    for e in entries:
+        date = (e.get("ts") or "")[:10]
+        if not date:
+            continue
+        d = by_date.setdefault(date, {"date": date, "dictations": 0, "words": 0,
+                                      "cost": 0.0, "audio_s": 0.0})
+        d["dictations"] += 1
+        d["words"] += word_count(e.get("text", ""))
+        d["audio_s"] += float(e.get("duration_s", 0) or 0)
+        d["cost"] += _entry_cost(e)
+    return [by_date[k] for k in sorted(by_date)]
 
 
 def render_html(entries: list) -> str:

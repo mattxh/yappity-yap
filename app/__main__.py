@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from . import appcontext, config as config_mod
-from . import cleanup, command, history, inject, learn, postprocess, textcmds, uia
+from . import cleanup, command, costs, history, inject, learn, postprocess, textcmds, uia
 from .config import get_api_key
 from .hotkey import ChordMachine, KeyboardHookAdapter
 from .i18n import tr
@@ -199,8 +199,9 @@ class App:
         inject.insert_text(result)
         if self.cfg.get("notify_on_insert"):
             self.notifier.toast(self.t("done_notify", chars=len(result)))
-        history.append_entry(history.HISTORY_PATH, lang="cmd",
-                             duration_s=wav_duration(wav), text=result)
+        dur = wav_duration(wav)
+        history.append_entry(history.HISTORY_PATH, lang="cmd", duration_s=dur, text=result,
+                             cost=self._estimate_cost(dur), model=self._transcription_model())
         self.on_history_changed()
 
     def _stop_and_enqueue(self):
@@ -264,8 +265,9 @@ class App:
         inject.insert_text(final)
         if self.cfg.get("notify_on_insert"):
             self.notifier.toast(self.t("done_notify", chars=len(final)))
-        history.append_entry(history.HISTORY_PATH, lang=lang,
-                             duration_s=wav_duration(wav), text=final)
+        dur = wav_duration(wav)
+        history.append_entry(history.HISTORY_PATH, lang=lang, duration_s=dur, text=final,
+                             cost=self._estimate_cost(dur), model=self._transcription_model())
         self.on_history_changed()
         self._set_pending_learn(final)
 
@@ -318,6 +320,14 @@ class App:
                 beep("error", self.cfg["beeps"])
                 self.notifier.toast(self.t("err_api", error=str(e)))
                 return None
+
+    def _transcription_model(self) -> str:
+        provider = self.cfg.get("provider", "openai")
+        return self.cfg.get("providers", {}).get(provider, {}).get("model", "")
+
+    def _estimate_cost(self, duration_s: float) -> float:
+        return costs.estimate_cost(duration_s, self._transcription_model(),
+                                   self.cfg.get("cleanup", {}).get("enabled", True))
 
     def _build_transcription_prompt(self, lang):
         # Note: do NOT inject a "output Chinese" directive for lang=='zh' — that

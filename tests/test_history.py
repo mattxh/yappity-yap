@@ -1,6 +1,7 @@
 import json
 
-from app.history import append_entry, tail, stats, render_html, word_count
+from app.history import (append_entry, tail, stats, render_html, word_count,
+                         daily_stats, classify_language)
 
 
 def test_append_creates_file_and_appends(tmp_path):
@@ -51,6 +52,36 @@ def test_stats_totals(tmp_path):
     assert s["words"] == 5            # 3 + 2
     assert s["audio_seconds"] == 3.0
     assert "time_saved_min" in s
+
+
+def test_daily_stats_groups_by_date():
+    entries = [
+        {"ts": "2026-06-15T09:00:00", "lang": "en", "duration_s": 2, "chars": 5,
+         "text": "one two", "cost": 0.01},
+        {"ts": "2026-06-15T10:00:00", "lang": "en", "duration_s": 1, "chars": 3,
+         "text": "three", "cost": 0.02},
+        {"ts": "2026-06-16T08:00:00", "lang": "zh", "duration_s": 1, "chars": 2,
+         "text": "你好", "cost": 0.03},
+    ]
+    days = daily_stats(entries)
+    assert [d["date"] for d in days] == ["2026-06-15", "2026-06-16"]
+    assert days[0]["dictations"] == 2
+    assert days[0]["words"] == 3                 # "one two" (2) + "three" (1)
+    assert round(days[0]["cost"], 2) == 0.03
+    assert days[1]["words"] == 2                 # 你好 = 2 CJK chars
+
+
+def test_daily_stats_estimates_missing_cost():
+    entries = [{"ts": "2026-06-16T08:00:00", "lang": "en", "duration_s": 60,
+                "chars": 5, "text": "hello"}]   # no 'cost' field (old entry)
+    days = daily_stats(entries)
+    assert days[0]["cost"] > 0                   # estimated from duration
+
+
+def test_classify_language():
+    assert classify_language("hello world") == "en"
+    assert classify_language("今天天氣很好") == "zh"
+    assert classify_language("用 VSCode 寫程式碼") == "mixed"
 
 
 def test_render_html_contains_search_and_text():
