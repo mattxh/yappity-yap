@@ -18,6 +18,11 @@ def test_is_installed_returns_bool():
     assert isinstance(startup.is_installed(), bool)
 
 
+def test_desktop_shortcut_path_and_installed():
+    assert startup.desktop_shortcut_path().name == "VoiceToText.lnk"
+    assert isinstance(startup.desktop_shortcut_installed(), bool)
+
+
 def test_install_escapes_single_quotes_in_paths(monkeypatch):
     monkeypatch.setattr(startup, "SHORTCUT", Path("C:/o'x/VoiceToText.lnk"))
     monkeypatch.setattr(startup, "APP_DIR", Path("C:/a'b"))

@@ -92,6 +92,17 @@ def run_tray(app, on_ready=None):
             app.notifier.toast(str(e))
         icon.update_menu()
 
+    def toggle_desktop():
+        try:
+            if startup.desktop_shortcut_installed():
+                startup.uninstall_desktop_shortcut()
+            else:
+                startup.install_desktop_shortcut()
+        except Exception as e:
+            log.exception("desktop shortcut toggle failed")
+            app.notifier.toast(str(e))
+        icon.update_menu()
+
     def build_menu():
         return Menu(
             Item(lambda item: t("ready"), None, enabled=False),
@@ -126,6 +137,8 @@ def run_tray(app, on_ready=None):
             Item(lambda item: t("open_config"), lambda: app.open_config()),
             Item(lambda item: t("start_with_windows"), toggle_startup,
                  checked=lambda item: startup.is_installed()),
+            Item(lambda item: t("desktop_shortcut"), toggle_desktop,
+                 checked=lambda item: startup.desktop_shortcut_installed()),
             Menu.SEPARATOR,
             Item(lambda item: t("quit"), lambda: (app.shutdown(), icon.stop())),
         )

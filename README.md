@@ -14,6 +14,17 @@ out as Traditional characters (繁體中文).
    A gray microphone appears in the system tray.
 5. Optional: tray menu → **Start with Windows**.
 
+## Starting & quitting
+
+- **Start:** double-click the **VoiceToText** icon on your Desktop (runs in the
+  background, no console window — a mic icon appears in the system tray). Create or
+  remove this icon any time from the tray → **Desktop shortcut**.
+- **Quit:** right-click the tray mic → **Quit**.
+- **Auto-start:** tray → **Start with Windows** so it's always running after you log in.
+
+(You can also double-click `run.bat`, or run `python -m app` from a terminal for
+debugging.)
+
 ## Using it
 
 | Action | Result |

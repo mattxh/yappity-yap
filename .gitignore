@@ -2,6 +2,7 @@
 config.json
 history.jsonl
 history.html
+icon.ico
 last_recording.wav
 app.log*
 
