@@ -22,7 +22,6 @@ class ChordMachine:
         self.state = IDLE
         self.ctrl = False
         self.win = False
-        self.other_held = 0
         self.t0 = 0.0
 
     # -- public API ---------------------------------------------------------
@@ -36,18 +35,16 @@ class ChordMachine:
             self.ctrl = etype == "down"
         elif key == "win":
             self.win = etype == "down"
-        elif key == "other":
-            if etype == "down":
-                self.other_held += 1
-            else:
-                self.other_held = max(0, self.other_held - 1)
 
         chord_complete = (
             etype == "down" and key in ("ctrl", "win") and self.ctrl and self.win
         )
 
         if self.state == IDLE:
-            if chord_complete and self.other_held == 0:
+            # Start on any completed chord. We deliberately do NOT gate on other
+            # keys being held — that gate, fed by a drift-prone counter, was what
+            # wedged the hotkey after a few uses.
+            if chord_complete:
                 self.state = HELD
                 self.t0 = self.clock()
                 self._safe(self.on_start)
@@ -77,7 +74,7 @@ class ChordMachine:
             return True
 
         if self.state == DRAIN:
-            if not self.ctrl and not self.win and self.other_held == 0:
+            if not self.ctrl and not self.win:
                 self.state = IDLE
             return True
 
@@ -109,6 +106,16 @@ class ChordMachine:
 
     def is_recording(self) -> bool:
         return self.state in (HELD, TOGGLED)
+
+    def is_idle(self) -> bool:
+        return self.state == IDLE
+
+    def reset(self):
+        """Force back to IDLE and clear modifier tracking. Used by the watchdog
+        to recover if the global hook ever drops a key event and desyncs us."""
+        self.state = IDLE
+        self.ctrl = False
+        self.win = False
 
     # -- internals ----------------------------------------------------------
 

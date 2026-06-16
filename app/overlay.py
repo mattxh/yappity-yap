@@ -27,8 +27,8 @@ ACCENTS = {"recording": "#f4796f", "transcribing": "#ffd24a", "command": "#9b8cf
 WAVE_MODES = ("recording", "command")   # show the live waveform (else dots)
 LEADING_GLYPHS = ("● ", "✍ ")
 
-_N_BARS = 11        # wider waveform array for the recording state
-_N_DOTS = 5         # transcribing: a wave of small dots
+_N_BARS = 7         # recording waveform: fewer, thinner, tighter bars
+_N_DOTS = 3         # transcribing: a small wave of dots
 
 
 def _bar_params(i: int, n: int):
@@ -111,8 +111,8 @@ class Overlay:
                 label, hint = (text.split(" — ", 1) + [""])[:2]
                 textless = (mode == "recording")   # recording shows only the waveform
                 pad, gap, h = s(12), s(8), s(28)
-                bar_w, bar_gap = s(3), s(4)        # wider gap -> wider waveform array
-                dot_r, dot_step = s(2), s(7)
+                bar_w, bar_gap = s(2), s(2)        # thin, tight bars
+                dot_r, dot_step = s(2), s(6)
                 if mode in WAVE_MODES:
                     ind_w = _N_BARS * bar_w + (_N_BARS - 1) * bar_gap
                 elif mode == "transcribing":

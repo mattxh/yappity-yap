@@ -31,6 +31,7 @@ LOG_PATH = PROJECT_ROOT / "app.log"
 SINGLE_INSTANCE_PORT = 50517
 WAV_HEADER_BYTES = 44
 BYTES_PER_SECOND = 32000  # 16 kHz * 2 bytes
+WATCHDOG_INTERVAL_S = 5
 
 
 def wav_duration(wav: bytes) -> float:
@@ -82,7 +83,9 @@ class App:
         self._gate = JobGate()   # serializes jobs + owns the auto-stop timer
         self._cmd_recording = False
         self._cmd_selection = ""
+        self._stopping = False
         threading.Thread(target=self._worker, daemon=True, name="pipeline").start()
+        threading.Thread(target=self._watchdog, daemon=True, name="watchdog").start()
 
     def t(self, key, **fmt):
         return tr(key, self.cfg.get("ui_language", "en"), **fmt)
@@ -423,6 +426,7 @@ class App:
         config_mod.save_config(self.cfg, self.cfg_path)
 
     def shutdown(self):
+        self._stopping = True
         try:
             self.adapter.stop()
         except Exception:
@@ -437,6 +441,30 @@ class App:
     def _finish_ui(self):
         self.overlay.hide()
         self.set_tray_state("idle")
+
+    def _watchdog(self):
+        """Recover the hotkey if the global hook ever drops a key event and
+        leaves the machine wedged (non-idle while nothing is recording and no
+        job is in flight). Requires the wedge to persist two checks (~10s) so a
+        brief transient is never reset."""
+        stuck = None
+        while not self._stopping:
+            time.sleep(WATCHDOG_INTERVAL_S)
+            try:
+                wedged = (not self.machine.is_idle()
+                          and not self.recorder.is_active()
+                          and not self._gate.is_active()
+                          and not self._cmd_recording)
+                if wedged and self.machine.state == stuck:
+                    log.warning("hotkey watchdog: recovering stuck state %r",
+                                self.machine.state)
+                    self.machine.reset()
+                    self._finish_ui()
+                    stuck = None
+                else:
+                    stuck = self.machine.state if wedged else None
+            except Exception:
+                log.debug("watchdog error", exc_info=True)
 
 
 def acquire_single_instance():

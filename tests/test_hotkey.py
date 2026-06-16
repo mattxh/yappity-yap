@@ -114,15 +114,15 @@ def test_other_key_during_hold_cancels_passthrough(rig):
     assert spy.calls == ["start", "cancel", "start"]
 
 
-def test_chord_ignored_when_other_key_already_held(rig):
+def test_chord_starts_despite_stray_other_key(rig):
+    # Regression: a leaked/unbalanced "other" key-down (a missed key-up or the
+    # synthetic Start-menu-suppression key) must NEVER block the hotkey from
+    # starting. This is what wedged the hotkey "after a few uses".
     m, spy, _ = rig
-    m.handle("down", "other")
+    m.handle("down", "other")   # no matching "up" — would have leaked the old counter
     m.handle("down", "ctrl")
     m.handle("down", "win")
-    assert spy.calls == []
-    m.handle("up", "other")
-    m.handle("up", "ctrl")
-    m.handle("up", "win")
+    assert spy.calls == ["start"]
 
 
 def test_busy_blocks_new_chord_until_pipeline_done(rig):
@@ -162,6 +162,18 @@ def test_external_stop_in_toggled(rig):
 def test_external_stop_noop_when_idle(rig):
     m, spy, _ = rig
     assert m.external_stop() is False
+
+
+def test_reset_recovers_to_idle(rig):
+    m, spy, _ = rig
+    m.handle("down", "ctrl")
+    m.handle("down", "win")          # HELD (recording)
+    assert not m.is_idle()
+    m.reset()
+    assert m.is_idle() and not m.is_recording()
+    m.handle("down", "ctrl")
+    m.handle("down", "win")          # works again after recovery
+    assert spy.calls == ["start", "start"]
 
 
 def test_force_start_only_from_idle(rig):
