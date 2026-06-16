@@ -27,6 +27,7 @@ log = logging.getLogger("app")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 LAST_RECORDING = PROJECT_ROOT / "last_recording.wav"
+CORRECTIONS_PATH = PROJECT_ROOT / "corrections.json"
 LOG_PATH = PROJECT_ROOT / "app.log"
 SINGLE_INSTANCE_PORT = 50517
 WAV_HEADER_BYTES = 44
@@ -290,22 +291,32 @@ class App:
         if not current:
             return
         inserted, snapshot = pending
-        dic = self.cfg.setdefault("cleanup", {}).setdefault("dictionary", [])
-        terms = learn.extract_corrections(inserted, snapshot, current,
-                                          known=set(dic),
+        cu = self.cfg.setdefault("cleanup", {})
+        dic = cu.setdefault("dictionary", [])
+        pairs = learn.extract_corrections(inserted, snapshot, current, known=set(dic),
                                           min_ratio=lc.get("min_ratio", 0.6))
-        if not terms:
+        if not pairs:
             return
-        for term in terms:
+        # Count each rewrite; only promote a word once it's been rewritten enough times.
+        store = learn.load_corrections(CORRECTIONS_PATH)
+        learn.bump_corrections(store, pairs)
+        promoted = learn.due_for_promotion(store, lc.get("promote_after", 2))
+        learn.save_corrections(store, CORRECTIONS_PATH)
+        if not promoted:
+            return
+        auto = cu.setdefault("auto_learned", [])
+        for term in promoted:
             if term not in dic:
                 dic.append(term)
+            if term not in auto:
+                auto.append(term)
         max_terms = lc.get("max_terms", 200)
         if len(dic) > max_terms:
             del dic[:len(dic) - max_terms]
         config_mod.save_config(self.cfg, self.cfg_path)
-        log.info("auto-learned dictionary terms: %s", terms)
+        log.info("promoted to dictionary after repeated rewrites: %s", promoted)
         if lc.get("notify", True):
-            self.notifier.toast(self.t("learned", terms=", ".join(terms)))
+            self.notifier.toast(self.t("learned", terms=", ".join(promoted)))
 
     def _transcribe_with_retry(self, wav, language, prompt):
         for attempt in (1, 2):

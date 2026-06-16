@@ -2,6 +2,8 @@
 config.json
 history.jsonl
 history.html
+dashboard.html
+corrections.json
 icon.ico
 last_recording.wav
 app.log*

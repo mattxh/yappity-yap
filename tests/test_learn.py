@@ -1,4 +1,6 @@
-from app.learn import _ratio, _is_learnable, extract_corrections
+from app.learn import (_ratio, _is_learnable, extract_corrections,
+                       bump_corrections, due_for_promotion,
+                       load_corrections, save_corrections)
 
 
 def test_ratio_identical_and_disjoint():
@@ -29,7 +31,7 @@ def test_is_learnable_rejects_short_and_known():
 
 def test_extract_corrections_finds_name_fix():
     out = extract_corrections("call aditya now", "call aditya now", "call Adithya now")
-    assert out == ["Adithya"]
+    assert out == [("aditya", "Adithya")]
 
 
 def test_extract_corrections_no_change():
@@ -45,3 +47,29 @@ def test_extract_corrections_respects_known():
     out = extract_corrections("call aditya now", "call aditya now", "call Adithya now",
                               known={"Adithya"})
     assert out == []
+
+
+def test_promotes_only_after_more_than_twice():
+    store = {}
+    pair = [("aditya", "Adithya")]
+    bump_corrections(store, pair)
+    assert due_for_promotion(store, threshold=2) == []     # count 1
+    bump_corrections(store, pair)
+    assert due_for_promotion(store, threshold=2) == []     # count 2
+    bump_corrections(store, pair)
+    assert due_for_promotion(store, threshold=2) == ["Adithya"]   # count 3 -> promote
+    bump_corrections(store, pair)
+    assert due_for_promotion(store, threshold=2) == []     # already promoted
+
+
+def test_corrections_round_trip(tmp_path):
+    p = tmp_path / "corrections.json"
+    store = {}
+    bump_corrections(store, [("foo", "Foo")])
+    save_corrections(store, p)
+    loaded = load_corrections(p)
+    assert loaded["foo"]["count"] == 1 and loaded["foo"]["new"] == "Foo"
+
+
+def test_load_corrections_missing_file(tmp_path):
+    assert load_corrections(tmp_path / "nope.json") == {}

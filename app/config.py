@@ -36,12 +36,14 @@ DEFAULTS = {
         "min_ratio": 0.6,
         "max_terms": 200,
         "notify": True,
+        "promote_after": 2,      # add a word only after it's rewritten more than this
     },
     "cleanup": {
         "enabled": True,
         "model": "gpt-4o-mini",
         "style": "balanced",   # light | balanced | heavy
         "dictionary": [],
+        "auto_learned": [],    # subset of dictionary that was auto-added (for the dashboard)
         "app_aware": True,     # adapt tone/format to the focused app
         "app_styles": [],      # user overrides, merged before built-in defaults
         # Cleanup uses its own OpenAI-compatible chat endpoint, independent of the

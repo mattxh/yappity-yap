@@ -5,7 +5,9 @@ later, find words the user *corrected* (a similar-but-different replacement of o
 our words) — biased toward names/jargon, guarded against junk.
 """
 import difflib
+import json
 import re
+from pathlib import Path
 
 _TOKEN = re.compile(r"\S+")
 _PUNCT = " .,!?;:\"'()[]{}…—-。，、；：？！「」『』（）"
@@ -40,7 +42,7 @@ def _is_learnable(old: str, new: str, known_lower=frozenset(), min_ratio: float 
 
 def extract_corrections(inserted: str, snapshot_after: str, current: str,
                         known=frozenset(), min_ratio: float = 0.6) -> list:
-    """Return corrected terms (as the user typed them) to learn into the dictionary."""
+    """Return (old, new) correction pairs the user made to words we inserted."""
     inserted_words = {w.strip(_PUNCT).lower() for w in _TOKEN.findall(inserted)}
     a = _TOKEN.findall(snapshot_after)
     b = _TOKEN.findall(current)
@@ -59,6 +61,45 @@ def extract_corrections(inserted: str, snapshot_after: str, current: str,
             if n.lower() in seen:
                 continue
             if _is_learnable(o, n, known_lower, min_ratio):
-                out.append(n)
+                out.append((o, n))
                 seen.add(n.lower())
     return out
+
+
+# -- correction-frequency store (promote to dictionary after N rewrites) ------
+
+def load_corrections(path) -> dict:
+    try:
+        store = json.loads(Path(path).read_text(encoding="utf-8"))
+        return store if isinstance(store, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_corrections(store: dict, path) -> None:
+    try:
+        Path(path).write_text(json.dumps(store, ensure_ascii=False, indent=2),
+                              encoding="utf-8")
+    except OSError:
+        pass
+
+
+def bump_corrections(store: dict, pairs) -> None:
+    """Increment the seen-count for each (old, new) correction (keyed by new)."""
+    for old, new in pairs:
+        key = new.lower()
+        entry = store.get(key) or {"old": old, "new": new, "count": 0, "promoted": False}
+        entry["old"] = old
+        entry["new"] = new
+        entry["count"] = entry.get("count", 0) + 1
+        store[key] = entry
+
+
+def due_for_promotion(store: dict, threshold: int = 2) -> list:
+    """Return new terms whose count now exceeds `threshold` and mark them promoted."""
+    promoted = []
+    for entry in store.values():
+        if not entry.get("promoted") and entry.get("count", 0) > threshold:
+            entry["promoted"] = True
+            promoted.append(entry["new"])
+    return promoted
