@@ -366,7 +366,7 @@ class App:
             if not final.strip():
                 self.notifier.toast(self.t("err_empty"))
                 return
-        if inject.focused_is_text_input() is False:
+        if uia.focused_is_text_input() is False:
             # Cursor isn't in a text field — Ctrl+V would go nowhere. Offer the
             # transcript so the user can copy it instead of losing it.
             self._offer_transcript(final)

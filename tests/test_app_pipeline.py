@@ -157,6 +157,51 @@ def test_offer_transcript_without_overlay_copies_and_toasts(monkeypatch):
     assert toasts == ["paste_failed_copied"]
 
 
+def _dictation_fake(calls):
+    return types.SimpleNamespace(
+        cfg={"language": "auto", "snippets": {}, "spoken_formatting": False,
+             "append_space": False, "notify_on_insert": False, "show_overlay": True},
+        notifier=types.SimpleNamespace(toast=lambda *a, **k: None),
+        _consume_pending_learn=lambda: None,
+        _build_transcription_prompt=lambda lang: None,
+        _transcribe_with_retry=lambda wav, language, prompt: "hello",
+        _maybe_cleanup=lambda text, lang: text,
+        _estimate_cost=lambda dur: 0.0,
+        _transcription_model=lambda: "m",
+        on_history_changed=lambda: None,
+        _set_pending_learn=lambda final: calls.__setitem__("pending", final),
+        _offer_transcript=lambda final: calls.__setitem__("offered", final),
+        _last_dictation="",
+    )
+
+
+def _patch_dictation(monkeypatch, tmp_path, calls, editable):
+    import app.__main__ as m
+    monkeypatch.setattr(m, "LAST_RECORDING", tmp_path / "lr.wav")
+    monkeypatch.setattr(m.uia, "focused_is_text_input", lambda: editable)
+    monkeypatch.setattr(m.inject, "insert_text",
+                        lambda final, **k: calls.__setitem__("inserted", final))
+    monkeypatch.setattr(m.history, "append_entry", lambda *a, **k: None)
+
+
+def test_transcribe_pastes_when_focus_is_text_field(monkeypatch, tmp_path):
+    # regression: this path was uncovered and a wrong module reference (inject vs uia)
+    # crashed every dictation as "transcription failed".
+    calls = {}
+    _patch_dictation(monkeypatch, tmp_path, calls, editable=True)
+    App._transcribe_and_insert(_dictation_fake(calls), b"x" * 200)
+    assert calls.get("inserted") == "hello"
+    assert "offered" not in calls
+
+
+def test_transcribe_offers_copy_when_focus_not_text_field(monkeypatch, tmp_path):
+    calls = {}
+    _patch_dictation(monkeypatch, tmp_path, calls, editable=False)
+    App._transcribe_and_insert(_dictation_fake(calls), b"x" * 200)
+    assert calls.get("offered") == "hello"
+    assert "inserted" not in calls
+
+
 def test_build_transcription_prompt(monkeypatch):
     fake = types.SimpleNamespace(cfg={"cleanup": {"dictionary": ["Foo", "Bar"]}})
     # vocabulary is included, but NO forced-Chinese directive (that translated English)
