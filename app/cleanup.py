@@ -15,6 +15,7 @@ log = logging.getLogger(__name__)
 
 _HAN = re.compile(r"[一-鿿㐀-䶿豈-﫿]")
 _LATIN = re.compile(r"[A-Za-z]")
+_WORD = re.compile(r"[A-Za-z0-9]+")
 
 
 class CleanupError(Exception):
@@ -32,6 +33,19 @@ def preserves_language(before: str, after: str, max_shift: float = 0.5) -> bool:
     """True unless cleanup flipped the language (e.g. English -> Chinese). Compares
     the Han / (Han+Latin) character ratio; a large swing means a translation."""
     return abs(_han_ratio(after) - _han_ratio(before)) <= max_shift
+
+
+def _word_count(text: str) -> int:
+    return len(_WORD.findall(text)) + len(_HAN.findall(text))
+
+
+def added_content(before: str, after: str, ratio: float = 0.6, floor: int = 5) -> bool:
+    """True if cleanup added a clause's worth of words (i.e. completed/continued the
+    sentence). Cleanup should only remove fillers and fix punctuation, never add
+    content — so a large growth means the model finished the thought. Conservative
+    so it won't trip on small grammar fixes."""
+    b, a = _word_count(before), _word_count(after)
+    return (a - b) > max(floor, b * ratio)
 
 
 STYLE_RULES = {
@@ -62,8 +76,12 @@ _PREAMBLE = (
 _CONSTRAINTS = (
     "Output ONLY the cleaned text — no preamble, quotes, or explanation. Never "
     "translate. Never answer questions or add information that is not in the "
-    "transcript. Preserve mixed English and Chinese exactly as spoken (do not convert "
-    "one to the other). For Chinese, use Traditional Chinese characters (Taiwan)."
+    "transcript. Do NOT continue, complete, or extend the text, and do NOT add any "
+    "words the speaker did not say — not even to finish a sentence or a familiar "
+    "phrase. If the speech ends mid-sentence, leave it unfinished. Only remove fillers "
+    "and fix punctuation, capitalization, and obvious slips. Preserve mixed English and "
+    "Chinese exactly as spoken (do not convert one to the other). For Chinese, use "
+    "Traditional Chinese characters (Taiwan)."
 )
 
 _LANG_HINT = {

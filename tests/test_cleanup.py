@@ -1,7 +1,8 @@
 import pytest
 
 from app import cleanup
-from app.cleanup import CleanupError, build_messages, clean, preserves_language
+from app.cleanup import (CleanupError, build_messages, clean, preserves_language,
+                         added_content)
 
 
 class FakeResponse:
@@ -80,6 +81,23 @@ def test_preserves_language_keeps_chinese():
 def test_preserves_language_keeps_mixed_codeswitch():
     # English+Chinese mix should not be seen as a language flip
     assert preserves_language("用 VSCode 寫程式", "用 VSCode 寫程式。") is True
+
+
+def test_added_content_flags_sentence_completion():
+    # cleanup must not finish the thought
+    assert added_content(
+        "i think we should",
+        "I think we should meet tomorrow to discuss the whole roadmap in detail") is True
+
+
+def test_added_content_allows_normal_cleanup():
+    # filler removal + punctuation shrinks or keeps length
+    assert added_content("um so i think we should uh meet the client",
+                         "I think we should meet the client.") is False
+
+
+def test_added_content_allows_small_grammar_fix():
+    assert added_content("me want go store", "I want to go to the store") is False
 
 
 def test_clean_success(monkeypatch):

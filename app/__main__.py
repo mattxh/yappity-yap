@@ -429,6 +429,9 @@ class App:
         if not cleanup.preserves_language(text, cleaned):
             log.warning("cleanup changed the language; keeping the raw transcript")
             return text
+        if cleanup.added_content(text, cleaned):
+            log.warning("cleanup added/continued content; keeping the raw transcript")
+            return text
         return cleaned
 
     # -- tray actions (tray thread) --------------------------------------------
