@@ -70,6 +70,12 @@ class Overlay:
         if self.enabled:
             self._q.put(("notice", text, (undo_label, on_undo)))
 
+    def transcript(self, text: str, copy_label: str, on_copy):
+        """Show the transcript with a Copy button and a dismiss (✕) — used when the
+        text could not be pasted into a field."""
+        if self.enabled:
+            self._q.put(("transcript", text, (copy_label, on_copy)))
+
     # -- overlay thread -------------------------------------------------------
 
     def _run(self):
@@ -242,15 +248,16 @@ class Overlay:
                 elif cb and cb[0] <= event.x <= cb[1]:
                     hide_notice()
 
-            def build_notice(text, undo_label, on_undo):
+            def build_action(text, action_label, on_action, glyph="✓",
+                             glyph_color="#5dcaa5", action_fg="#9bd3ff", timeout_ms=9000):
                 clear_notice()
                 canvas.delete("all")
                 st["bars"], st["dot"], st["dots"] = [], None, []
-                st.update(mode="notice", visible=False, notice_undo=on_undo)
+                st.update(mode="notice", visible=False, notice_undo=on_action)
                 pad, gap, h, bp = s(12), s(9), s(32), s(8)
                 lw = label_font.measure(text)
-                cw = label_font.measure("✓")
-                uw = label_font.measure(undo_label)
+                cw = label_font.measure(glyph)
+                uw = label_font.measure(action_label)
                 xw = label_font.measure("✕")
                 w = pad + cw + gap + lw + gap + (uw + 2 * bp) + gap + xw + pad
                 canvas.config(width=w, height=h)
@@ -258,7 +265,7 @@ class Overlay:
                            fill=PILL_BG, outline=BORDER, width=max(1, s(1)))
                 cy = h // 2
                 cx = pad
-                canvas.create_text(cx, cy, text="✓", fill="#5dcaa5",
+                canvas.create_text(cx, cy, text=glyph, fill=glyph_color,
                                    font=label_font, anchor="w")
                 cx += cw + gap
                 canvas.create_text(cx, cy, text=text, fill=LABEL_FG,
@@ -266,8 +273,8 @@ class Overlay:
                 cx += lw + gap
                 ux1, ux2 = cx, cx + uw + 2 * bp
                 round_rect(ux1, cy - s(9), ux2, cy + s(9), s(9), fill="#34343c", outline="")
-                canvas.create_text((ux1 + ux2) // 2, cy, text=undo_label,
-                                   fill="#9bd3ff", font=label_font, anchor="center")
+                canvas.create_text((ux1 + ux2) // 2, cy, text=action_label,
+                                   fill=action_fg, font=label_font, anchor="center")
                 st["undo_box"] = (ux1, ux2)
                 cx = ux2 + gap
                 canvas.create_text(cx, cy, text="✕", fill=HINT_FG,
@@ -281,7 +288,7 @@ class Overlay:
                 root.attributes("-topmost", True)
                 self._apply_exstyles(root, clickthrough=False)   # must receive clicks
                 canvas.bind("<Button-1>", on_notice_click)
-                st["notice_timer"] = root.after(9000, hide_notice)
+                st["notice_timer"] = root.after(timeout_ms, hide_notice)
 
             def poll():
                 try:
@@ -294,7 +301,11 @@ class Overlay:
                             st["visible"] = False
                             root.withdraw()
                         elif cmd == "notice":
-                            build_notice(text, mode[0], mode[1])
+                            build_action(text, mode[0], mode[1])
+                        elif cmd == "transcript":
+                            build_action(text, mode[0], mode[1], glyph="✍",
+                                         glyph_color=ACCENTS["transcribing"],
+                                         action_fg="#c3b3ff", timeout_ms=8000)
                         elif cmd == "close":
                             root.destroy()
                             return
@@ -338,4 +349,7 @@ class NullOverlay:
         pass
 
     def notice(self, text, undo_label, on_undo):
+        pass
+
+    def transcript(self, text, copy_label, on_copy):
         pass

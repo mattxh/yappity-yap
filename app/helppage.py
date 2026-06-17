@@ -31,6 +31,9 @@ def render_help(hotkey: str, command_hotkey: str) -> str:
     p.append("<li><b>Tap</b> Win+Ctrl to toggle hands-free recording; tap again to finish.</li>")
     p.append("<li><kbd>Esc</kbd> while recording cancels. Win+Ctrl+←/→ etc. pass through.</li>")
     p.append("<li>A waveform shows while recording; yellow dots while transcribing.</li>")
+    p.append("<li>If your cursor isn’t in a text box, the transcript appears in the "
+             "overlay with a <b>Copy</b> button (and an ✕ to dismiss) instead of pasting "
+             "into nowhere.</li>")
     p.append("</ul>")
 
     p.append("<h2>Command mode — edit selected text by voice</h2><ul>")

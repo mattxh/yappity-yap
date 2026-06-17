@@ -33,6 +33,49 @@ def _client():
         return None, None
 
 
+def focused_is_text_input():
+    """Best-effort: is the focused control somewhere a paste (Ctrl+V) would land?
+
+    Returns True for editable text controls, False for clearly non-text controls
+    (buttons, panes/desktop, list items, …), and None when UIA can't tell — callers
+    should treat None as 'probably fine, go ahead and paste'.
+    """
+    iuia, lib = _client()
+    if iuia is None:
+        return None
+    try:
+        el = iuia.GetFocusedElement()
+        if el is None:
+            return None
+        try:
+            patt = el.GetCurrentPattern(lib.UIA_ValuePatternId)
+            if patt:
+                vp = patt.QueryInterface(lib.IUIAutomationValuePattern)
+                return not vp.CurrentIsReadOnly   # writable edit -> True, read-only -> False
+        except Exception:
+            pass
+        try:
+            ctype = el.CurrentControlType
+        except Exception:
+            return None
+        if ctype in (lib.UIA_EditControlTypeId, lib.UIA_DocumentControlTypeId):
+            return True
+        non_text = {
+            lib.UIA_ButtonControlTypeId, lib.UIA_CheckBoxControlTypeId,
+            lib.UIA_RadioButtonControlTypeId, lib.UIA_MenuItemControlTypeId,
+            lib.UIA_HyperlinkControlTypeId, lib.UIA_TabItemControlTypeId,
+            lib.UIA_ListItemControlTypeId, lib.UIA_TreeItemControlTypeId,
+            lib.UIA_ImageControlTypeId, lib.UIA_PaneControlTypeId,
+            lib.UIA_WindowControlTypeId, lib.UIA_TextControlTypeId,
+        }
+        if ctype in non_text:
+            return False
+        return None
+    except Exception:
+        log.debug("focused_is_text_input failed", exc_info=True)
+        return None
+
+
 def read_focused_text() -> str | None:
     """Return the focused control's text (ValuePattern, else TextPattern), or None."""
     iuia, lib = _client()

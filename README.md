@@ -207,8 +207,13 @@ available there).
 
 ## Troubleshooting
 
+- **Cursor isn't in a text box** — if you dictate while focus is on something that
+  can't accept text (a button, the desktop, etc.), the app detects it and shows the
+  transcript in a small overlay with a **Copy** button (and an **✕** to dismiss) for a
+  few seconds, instead of pasting into nowhere. It's also saved to history.
 - **Nothing pastes into an admin window** — Windows blocks simulated input into
-  elevated apps. The text is still on the clipboard; or run this app as admin too.
+  elevated apps. The transcript is saved in history (tray → **Recent** / **Open
+  history**); or run this app as admin too.
 - **No tray icon / import errors** — re-run `python -m pip install -r requirements.txt`;
   if a package fails on Python 3.14 (Store version), install Python 3.12 from
   python.org and use that.

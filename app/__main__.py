@@ -366,15 +366,30 @@ class App:
             if not final.strip():
                 self.notifier.toast(self.t("err_empty"))
                 return
-        inject.insert_text(final)
-        if self.cfg.get("notify_on_insert"):
-            self.notifier.toast(self.t("done_notify", chars=len(final)))
+        if inject.focused_is_text_input() is False:
+            # Cursor isn't in a text field — Ctrl+V would go nowhere. Offer the
+            # transcript so the user can copy it instead of losing it.
+            self._offer_transcript(final)
+        else:
+            inject.insert_text(final)
+            if self.cfg.get("notify_on_insert"):
+                self.notifier.toast(self.t("done_notify", chars=len(final)))
+            self._last_dictation = final
+            self._set_pending_learn(final)
         dur = wav_duration(wav)
         history.append_entry(history.HISTORY_PATH, lang=lang, duration_s=dur, text=final,
                              cost=self._estimate_cost(dur), model=self._transcription_model())
         self.on_history_changed()
-        self._last_dictation = final
-        self._set_pending_learn(final)
+
+    def _offer_transcript(self, text: str):
+        """Show the transcript with a Copy button (and ✕) when it couldn't be pasted.
+        The clipboard is left untouched unless the user clicks Copy."""
+        if self.cfg.get("show_overlay", True):
+            self.overlay.transcript(_shorten(text, 48), self.t("copy"),
+                                    lambda: inject.set_clipboard(text))
+        else:
+            inject.set_clipboard(text)
+            self.notifier.toast(self.t("paste_failed_copied"))
 
     # -- auto-learning dictionary (UIA reads stay on this worker thread) -------
 

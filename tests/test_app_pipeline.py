@@ -1,5 +1,7 @@
 import types
 
+import pytest
+
 from app import cleanup as cleanup_mod
 from app.__main__ import App, _shorten, _parse_words
 
@@ -121,6 +123,38 @@ def test_learn_from_selection_no_change_learns_nothing(tmp_path):
     App._learn_from_selection(fake, "hello world")
     assert fake.cfg["cleanup"]["dictionary"] == []
     assert fake._just_learned is None
+
+
+def test_offer_transcript_shows_copyable_overlay(monkeypatch):
+    seen = {}
+    fake = types.SimpleNamespace(
+        cfg={"show_overlay": True},
+        overlay=types.SimpleNamespace(
+            transcript=lambda text, label, cb: seen.update(text=text, label=label, cb=cb)),
+        notifier=types.SimpleNamespace(toast=lambda *a, **k: seen.update(toasted=True)),
+        t=lambda key, **k: key,
+    )
+    App._offer_transcript(fake, "hello world this is the dictated transcript")
+    assert "hello world" in seen["text"]
+    assert seen["label"] == "copy"
+    assert callable(seen["cb"])          # Copy button copies the full text on demand
+    assert "toasted" not in seen          # overlay shown, no toast
+
+
+def test_offer_transcript_without_overlay_copies_and_toasts(monkeypatch):
+    from app import inject as inject_mod
+    copied, toasts = {}, []
+    monkeypatch.setattr(inject_mod, "set_clipboard", lambda t: copied.update(t=t))
+    fake = types.SimpleNamespace(
+        cfg={"show_overlay": False},
+        overlay=types.SimpleNamespace(
+            transcript=lambda *a, **k: pytest.fail("overlay disabled; must not show")),
+        notifier=types.SimpleNamespace(toast=lambda msg, **k: toasts.append(msg)),
+        t=lambda key, **k: key,
+    )
+    App._offer_transcript(fake, "hello")
+    assert copied["t"] == "hello"
+    assert toasts == ["paste_failed_copied"]
 
 
 def test_build_transcription_prompt(monkeypatch):

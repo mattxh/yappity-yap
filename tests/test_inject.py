@@ -56,3 +56,10 @@ def test_insert_text_can_skip_restore(monkeypatch):
     _install(monkeypatch, clip, kb)
     inject.insert_text("HELLO", settle_ms=0, restore_clipboard=False)
     assert store["v"] == "HELLO"         # left on the clipboard when restore is off
+
+
+def test_set_clipboard_copies(monkeypatch):
+    clip, store = _fake_clipboard()
+    monkeypatch.setitem(sys.modules, "pyperclip", clip)
+    assert inject.set_clipboard("hello") is True
+    assert store["v"] == "hello"

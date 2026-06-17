@@ -58,6 +58,18 @@ def insert_text(text: str, settle_ms: int = 150, restore_clipboard: bool = True,
 _NO_SELECTION = "\x00\x00__voicetotext_no_selection__\x00\x00"
 
 
+def set_clipboard(text: str) -> bool:
+    """Put text on the clipboard (used by the 'Copy' fallback). Returns success."""
+    import pyperclip
+
+    try:
+        pyperclip.copy(text)
+        return True
+    except Exception:
+        log.exception("clipboard copy failed")
+        return False
+
+
 def capture_selection(settle_ms: int = 130) -> str:
     """Copy the current selection and return it (for command mode), or '' if
     nothing is selected. Waits for the trigger modifiers to release first so we
