@@ -2,7 +2,7 @@ import pytest
 
 from app import cleanup
 from app.cleanup import (CleanupError, build_messages, clean, preserves_language,
-                         added_content)
+                         added_content, answered_instead_of_cleaned)
 
 
 class FakeResponse:
@@ -98,6 +98,33 @@ def test_added_content_allows_normal_cleanup():
 
 def test_added_content_allows_small_grammar_fix():
     assert added_content("me want go store", "I want to go to the store") is False
+
+
+def test_answered_flags_question_replaced_by_answer():
+    # cleanup must not answer the dictated question
+    assert answered_instead_of_cleaned("what is the capital of france", "Paris") is True
+
+
+def test_answered_allows_normal_cleanup():
+    assert answered_instead_of_cleaned(
+        "um what is the capital of france by the way",
+        "What is the capital of France?") is False
+
+
+def test_answered_exempts_heavy_style():
+    # heavy style is allowed to rephrase freely
+    assert answered_instead_of_cleaned(
+        "what is the capital of france", "Paris", style="heavy") is False
+
+
+def test_answered_ignores_short_utterances():
+    assert answered_instead_of_cleaned("thanks", "Got it.") is False
+
+
+def test_build_messages_forbids_answering():
+    msgs = build_messages("hi", style="balanced", dictionary=[], language="auto")
+    sys = msgs[0]["content"].lower()
+    assert "not an assistant" in sys or "do not answer" in sys or "do not reply" in sys
 
 
 def test_clean_success(monkeypatch):

@@ -279,3 +279,20 @@ def test_menu_guard_active_tracks_non_win_modifier():
 ])
 def test_chord_mods_parsing(text, expected):
     assert chord_mods(text) == expected
+
+
+def test_adapter_dispatch_drives_hold_for_alt_win(monkeypatch):
+    # End-to-end through the adapter: real OS key names -> normalize -> machine.
+    # Proves Win+Alt hold-to-talk fires start on press and stop on release.
+    clock = FakeClock()
+    spy = Spy()
+    m = ChordMachine(on_start=spy.start, on_stop=spy.stop, on_cancel=spy.cancel,
+                     mods=("alt", "win"), tap_threshold_ms=400, clock=clock)
+    adapter = KeyboardHookAdapter(m)
+    monkeypatch.setattr(adapter, "_send_dummy_vk", lambda: None)
+    adapter._dispatch("down", "left alt")
+    adapter._dispatch("down", "left windows")
+    assert spy.calls == ["start"]
+    clock.advance(0.6)
+    adapter._dispatch("up", "left windows")     # release after a hold -> stop
+    assert spy.calls == ["start", "stop"]

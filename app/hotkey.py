@@ -187,15 +187,20 @@ class KeyboardHookAdapter:
 
         def callback(event):
             etype = "down" if event.event_type == "down" else "up"
-            key = self.normalize(event.name)
-            in_chord = self.machine.handle(etype, key)
-            # Also fire when the other modifier is still physically down (user held
-            # the chord through the whole pipeline; machine may already be idle).
-            if key == MENU_KEY and etype == "up" \
-                    and (in_chord or self.machine.menu_guard_active()):
-                self._send_dummy_vk()
+            self._dispatch(etype, event.name)
 
         self._hook = keyboard.hook(callback)
+
+    def _dispatch(self, etype: str, name: str):
+        """Feed one raw key event to the machine (split out from start() so the
+        full adapter->machine wiring is unit-testable without the global hook)."""
+        key = self.normalize(name)
+        in_chord = self.machine.handle(etype, key)
+        # Also fire when the other modifier is still physically down (user held the
+        # chord through the whole pipeline; the machine may already be idle).
+        if key == MENU_KEY and etype == "up" \
+                and (in_chord or self.machine.menu_guard_active()):
+            self._send_dummy_vk()
 
     def stop(self):
         if self._hook is not None:

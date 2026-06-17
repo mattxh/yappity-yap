@@ -484,6 +484,9 @@ class App:
         if cleanup.added_content(text, cleaned):
             log.warning("cleanup added/continued content; keeping the raw transcript")
             return text
+        if cleanup.answered_instead_of_cleaned(text, cleaned, cu.get("style", "balanced")):
+            log.warning("cleanup answered instead of cleaning; keeping the raw transcript")
+            return text
         return cleaned
 
     # -- tray actions (tray thread) --------------------------------------------

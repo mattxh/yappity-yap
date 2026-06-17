@@ -19,13 +19,14 @@ def _install(monkeypatch, clip, kb):
     monkeypatch.setattr(inject, "_wait_modifiers_released", lambda *a, **k: None)
 
 
-def test_capture_selection_returns_copied_text(monkeypatch):
+def test_capture_selection_returns_copied_text_and_restores_clipboard(monkeypatch):
     clip, store = _fake_clipboard()
     # Ctrl+C copies the live selection -> simulate by overwriting the clipboard
     kb = types.SimpleNamespace(send=lambda combo: store.__setitem__("v", "SELECTED"),
                                is_pressed=lambda k: False)
     _install(monkeypatch, clip, kb)
     assert inject.capture_selection(settle_ms=0) == "SELECTED"
+    assert store["v"] == "PREV"   # selection read, but the user's clipboard is restored
 
 
 def test_capture_selection_empty_when_nothing_selected(monkeypatch):
@@ -35,3 +36,23 @@ def test_capture_selection_empty_when_nothing_selected(monkeypatch):
     _install(monkeypatch, clip, kb)
     assert inject.capture_selection(settle_ms=0) == ""
     assert store["v"] == "PREV"   # clipboard restored, sentinel not left behind
+
+
+def test_insert_text_pastes_the_text_then_restores_clipboard(monkeypatch):
+    clip, store = _fake_clipboard(initial="ORIGINAL")
+    seen = {}
+    # capture what's on the clipboard at the moment Ctrl+V fires
+    kb = types.SimpleNamespace(send=lambda combo: seen.__setitem__("at_paste", store["v"]),
+                               is_pressed=lambda k: False)
+    _install(monkeypatch, clip, kb)
+    inject.insert_text("HELLO", settle_ms=0, restore_delay_ms=0)
+    assert seen["at_paste"] == "HELLO"   # the transcript was on the clipboard for the paste
+    assert store["v"] == "ORIGINAL"      # ...but the user's clipboard is restored afterwards
+
+
+def test_insert_text_can_skip_restore(monkeypatch):
+    clip, store = _fake_clipboard(initial="ORIGINAL")
+    kb = types.SimpleNamespace(send=lambda combo: None, is_pressed=lambda k: False)
+    _install(monkeypatch, clip, kb)
+    inject.insert_text("HELLO", settle_ms=0, restore_clipboard=False)
+    assert store["v"] == "HELLO"         # left on the clipboard when restore is off
