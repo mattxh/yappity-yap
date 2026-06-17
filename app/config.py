@@ -111,6 +111,18 @@ def add_word(cfg: dict, word: str) -> bool:
     return True
 
 
+def add_words(cfg: dict, words) -> tuple:
+    """Add several words to cleanup.dictionary. Returns (added, skipped) lists, where
+    skipped were already present (case-insensitive). Mutates cfg; caller persists."""
+    added, skipped = [], []
+    for word in words:
+        word = (word or "").strip()
+        if not word:
+            continue
+        (added if add_word(cfg, word) else skipped).append(word)
+    return added, skipped
+
+
 def remove_word(cfg: dict, word: str) -> bool:
     """Remove a word from cleanup.dictionary and cleanup.auto_learned (case-insensitive).
     Returns True if anything was removed. Mutates cfg in place."""

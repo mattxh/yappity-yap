@@ -5,6 +5,7 @@ import logging
 import logging.handlers
 import os
 import queue
+import re
 import socket
 import sys
 import threading
@@ -44,6 +45,21 @@ def _shorten(text: str, n: int = 42) -> str:
     """Collapse whitespace and trim to n chars for the overlay label."""
     text = " ".join((text or "").split())
     return text if len(text) <= n else text[:n - 1] + "…"
+
+
+# Split the add-words dialog text into entries: one per line, comma, semicolon, or a
+# CJK comma — but NOT on spaces, so multi-word terms like "git diff" stay intact.
+_WORDS_SPLIT = re.compile(r"[,\n\r;，、]+")
+
+
+def _parse_words(text: str) -> list:
+    seen, out = set(), []
+    for part in _WORDS_SPLIT.split(text or ""):
+        word = part.strip()
+        if word and word.lower() not in seen:
+            seen.add(word.lower())
+            out.append(word)
+    return out
 
 
 def _set_dpi_awareness():
@@ -549,16 +565,23 @@ class App:
         self.cfg.setdefault("cleanup", {})["style"] = style
         config_mod.save_config(self.cfg, self.cfg_path)
 
-    def add_word(self):
-        """Tray 'Add word…': prompt for a word and add it to the dictionary live."""
-        word = prompt.ask_text(self.t("add_word_prompt"), title="VoiceToText")
-        if not word:
+    def add_words(self):
+        """Tray 'Add words…': prompt for one or more words and add them live."""
+        text = prompt.ask_words(self.t("add_words"), self.t("add_words_hint"),
+                                ok_label=self.t("btn_add"),
+                                cancel_label=self.t("btn_cancel"), title="VoiceToText")
+        words = _parse_words(text)
+        if not words:
             return
-        if config_mod.add_word(self.cfg, word):
+        added, skipped = config_mod.add_words(self.cfg, words)
+        if added:
             config_mod.save_config(self.cfg, self.cfg_path)
-            self.notifier.toast(self.t("word_added", word=word))
+        if added and skipped:
+            self.notifier.toast(self.t("words_added_some", n=len(added), dup=len(skipped)))
+        elif added:
+            self.notifier.toast(self.t("words_added", n=len(added)))
         else:
-            self.notifier.toast(self.t("word_exists", word=word))
+            self.notifier.toast(self.t("words_none_new"))
 
     def remove_word(self, word: str):
         if config_mod.remove_word(self.cfg, word):

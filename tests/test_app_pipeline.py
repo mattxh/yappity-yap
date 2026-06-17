@@ -1,7 +1,20 @@
 import types
 
 from app import cleanup as cleanup_mod
-from app.__main__ import App, _shorten
+from app.__main__ import App, _shorten, _parse_words
+
+
+def test_parse_words_splits_on_commas_and_newlines():
+    assert _parse_words("Claude, OpenAI\nAnthropic") == ["Claude", "OpenAI", "Anthropic"]
+
+
+def test_parse_words_keeps_multiword_terms_and_dedups():
+    # spaces are NOT separators (so 'git diff' stays one entry); dedup is case-insensitive
+    assert _parse_words("git diff, git diff\nGIT DIFF") == ["git diff"]
+
+
+def test_parse_words_handles_cjk_separators():
+    assert _parse_words("奇鋐、許勇，台積電") == ["奇鋐", "許勇", "台積電"]
 
 
 def test_shorten_collapses_whitespace_and_keeps_short_text():

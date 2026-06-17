@@ -61,6 +61,21 @@ def test_add_word_empty_is_noop():
     assert config.add_word(cfg, "") is False
 
 
+def test_add_words_reports_added_and_skipped():
+    cfg = {"cleanup": {"dictionary": ["Anthropic"]}}
+    added, skipped = config.add_words(cfg, ["Claude", "anthropic", "OpenAI"])
+    assert added == ["Claude", "OpenAI"]
+    assert skipped == ["anthropic"]      # already present (case-insensitive)
+    assert cfg["cleanup"]["dictionary"] == ["Anthropic", "Claude", "OpenAI"]
+
+
+def test_add_words_skips_blanks():
+    cfg = {"cleanup": {"dictionary": []}}
+    added, skipped = config.add_words(cfg, ["  ", "", "Foo"])
+    assert added == ["Foo"]
+    assert skipped == []
+
+
 def test_remove_word_from_dictionary_and_auto():
     cfg = {"cleanup": {"dictionary": ["Anthropic", "Adithya"], "auto_learned": ["Adithya"]}}
     assert config.remove_word(cfg, "adithya") is True   # case-insensitive
