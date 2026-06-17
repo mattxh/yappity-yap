@@ -1,4 +1,9 @@
-"""Win+Ctrl chord detection: pure state machine + keyboard-library adapter."""
+"""Modifier-chord detection: pure state machine + keyboard-library adapter.
+
+The chord is any pair of modifiers (default Win+Ctrl for dictation; Win+Alt is
+used for command mode). Both members must be down to start; releasing either ends
+a hold, a quick press toggles hands-free.
+"""
 import logging
 import time
 
@@ -10,18 +15,40 @@ TOGGLED = "toggled"    # recording hands-free after a tap
 DRAIN = "drain"        # cancelled; wait for full release
 BUSY = "busy"          # pipeline running; ignore chords
 
+MENU_KEY = "win"       # releasing this can open the Start menu (suppressed by the adapter)
+
+
+def chord_mods(hotkey: str):
+    """Map a hotkey string to a normalized (primary, 'win') modifier pair, or
+    None if it isn't one of the supported chords. Only Win+Ctrl and Win+Alt get
+    the full hold/tap behavior; anything else falls back to simple toggle mode."""
+    toks = {t for t in (hotkey or "").lower().replace("+", " ").split()}
+    mods = set()
+    for t in toks:
+        if "ctrl" in t:
+            mods.add("ctrl")
+        elif "alt" in t:
+            mods.add("alt")
+        elif "win" in t or t == "cmd":
+            mods.add("win")
+    if mods == {"ctrl", "win"}:
+        return ("ctrl", "win")
+    if mods == {"alt", "win"}:
+        return ("alt", "win")
+    return None
+
 
 class ChordMachine:
-    def __init__(self, on_start, on_stop, on_cancel,
+    def __init__(self, on_start, on_stop, on_cancel, mods=("ctrl", "win"),
                  tap_threshold_ms=400, clock=time.monotonic):
         self.on_start = on_start
         self.on_stop = on_stop
         self.on_cancel = on_cancel
+        self.mods = tuple(mods)
         self.tap_threshold = tap_threshold_ms / 1000.0
         self.clock = clock
         self.state = IDLE
-        self.ctrl = False
-        self.win = False
+        self.down = {m: False for m in self.mods}
         self.t0 = 0.0
 
     # -- public API ---------------------------------------------------------
@@ -31,13 +58,11 @@ class ChordMachine:
         chord interaction (adapter uses this to suppress the Start menu)."""
         in_chord_before = self.state != IDLE
 
-        if key == "ctrl":
-            self.ctrl = etype == "down"
-        elif key == "win":
-            self.win = etype == "down"
+        if key in self.down:
+            self.down[key] = etype == "down"
 
         chord_complete = (
-            etype == "down" and key in ("ctrl", "win") and self.ctrl and self.win
+            etype == "down" and key in self.mods and all(self.down.values())
         )
 
         if self.state == IDLE:
@@ -55,7 +80,7 @@ class ChordMachine:
             if key in ("esc", "other") and etype == "down":
                 self.state = DRAIN
                 self._safe(self.on_cancel)
-            elif etype == "up" and key in ("ctrl", "win"):
+            elif etype == "up" and key in self.mods:
                 elapsed = self.clock() - self.t0
                 if elapsed < self.tap_threshold:
                     self.state = TOGGLED
@@ -74,14 +99,20 @@ class ChordMachine:
             return True
 
         if self.state == DRAIN:
-            if not self.ctrl and not self.win:
+            if not any(self.down.values()):
                 self.state = IDLE
             return True
 
         if self.state == BUSY:
-            return key in ("ctrl", "win")
+            return key in self.mods
 
         return in_chord_before
+
+    def menu_guard_active(self) -> bool:
+        """True if a non-Win modifier of this chord is still physically down, so
+        the adapter keeps suppressing the Start menu even after the machine has
+        gone idle (the user held the chord through the whole pipeline)."""
+        return any(down for key, down in self.down.items() if key != MENU_KEY)
 
     def external_stop(self) -> bool:
         """Force-stop (max-duration timer). Caller runs the pipeline itself;
@@ -114,8 +145,8 @@ class ChordMachine:
         """Force back to IDLE and clear modifier tracking. Used by the watchdog
         to recover if the global hook ever drops a key event and desyncs us."""
         self.state = IDLE
-        self.ctrl = False
-        self.win = False
+        for m in self.down:
+            self.down[m] = False
 
     # -- internals ----------------------------------------------------------
 
@@ -135,15 +166,20 @@ class KeyboardHookAdapter:
         self.machine = machine
         self._hook = None
 
-    @staticmethod
-    def normalize(name: str) -> str:
+    def normalize(self, name: str) -> str:
+        """Map a raw key name to this chord's vocabulary. Modifiers outside this
+        chord (e.g. Ctrl for an Alt+Win chord) become 'other' so they can't start
+        or interfere with it."""
         n = (name or "").lower()
-        if "ctrl" in n:
-            return "ctrl"
-        if "windows" in n or n in ("win", "left win", "right win", "cmd"):
-            return "win"
         if n in ("esc", "escape"):
             return "esc"
+        if "ctrl" in n and "ctrl" in self.machine.mods:
+            return "ctrl"
+        if "alt" in n and "alt" in self.machine.mods:
+            return "alt"
+        if ("windows" in n or n in ("win", "left win", "right win", "cmd")) \
+                and "win" in self.machine.mods:
+            return "win"
         return "other"
 
     def start(self):
@@ -153,9 +189,10 @@ class KeyboardHookAdapter:
             etype = "down" if event.event_type == "down" else "up"
             key = self.normalize(event.name)
             in_chord = self.machine.handle(etype, key)
-            # Also fire when Ctrl is still physically down (user held the chord
-            # through the whole pipeline; machine may already be back to idle).
-            if key == "win" and etype == "up" and (in_chord or self.machine.ctrl):
+            # Also fire when the other modifier is still physically down (user held
+            # the chord through the whole pipeline; machine may already be idle).
+            if key == MENU_KEY and etype == "up" \
+                    and (in_chord or self.machine.menu_guard_active()):
                 self._send_dummy_vk()
 
         self._hook = keyboard.hook(callback)

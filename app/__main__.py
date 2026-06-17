@@ -15,7 +15,7 @@ from . import appcontext, config as config_mod
 from . import (cleanup, command, costs, dashboard, helppage, history, inject, learn,
                postprocess, prompt, textcmds, uia)
 from .config import get_api_key
-from .hotkey import ChordMachine, KeyboardHookAdapter
+from .hotkey import ChordMachine, KeyboardHookAdapter, chord_mods
 from .i18n import tr
 from .notify import Notifier, beep
 from .overlay import NullOverlay, Overlay
@@ -38,6 +38,12 @@ WATCHDOG_INTERVAL_S = 5
 
 def wav_duration(wav: bytes) -> float:
     return max(0.0, (len(wav) - WAV_HEADER_BYTES) / BYTES_PER_SECOND)
+
+
+def _shorten(text: str, n: int = 42) -> str:
+    """Collapse whitespace and trim to n chars for the overlay label."""
+    text = " ".join((text or "").split())
+    return text if len(text) <= n else text[:n - 1] + "…"
 
 
 def _set_dpi_awareness():
@@ -78,6 +84,8 @@ class App:
             tap_threshold_ms=cfg.get("tap_threshold_ms", 400),
         )
         self.adapter = KeyboardHookAdapter(self.machine)
+        self.cmd_machine = None    # command-mode chord (built if the hotkey is a chord)
+        self.cmd_adapter = None
         self.jobs: queue.Queue = queue.Queue()
         self.set_tray_state = lambda state: None  # replaced by tray.run_tray
         self.on_history_changed = lambda: None    # replaced by tray (refresh Recent)
@@ -86,7 +94,6 @@ class App:
         self._last_dictation = ""    # last inserted text, for the "correct it" command
         self._gate = JobGate()   # serializes jobs + owns the auto-stop timer
         self._cmd_recording = False
-        self._cmd_selection = ""
         self._stopping = False
         threading.Thread(target=self._worker, daemon=True, name="pipeline").start()
         threading.Thread(target=self._watchdog, daemon=True, name="watchdog").start()
@@ -135,9 +142,21 @@ class App:
 
     # -- command mode (voice-edit selected text) -----------------------------
 
+    def start_command_chord(self, mods):
+        """Give the command hotkey full hold/tap behavior via its own chord
+        machine + hook (mirrors dictation), so 'hold Win+Alt, speak, release'
+        works instead of only tap-to-start/tap-to-stop."""
+        self.cmd_machine = ChordMachine(
+            on_start=self._on_cmd_start, on_stop=self._cmd_chord_stop,
+            on_cancel=self._cmd_chord_cancel, mods=mods,
+            tap_threshold_ms=self.cfg.get("tap_threshold_ms", 400),
+        )
+        self.cmd_adapter = KeyboardHookAdapter(self.cmd_machine)
+        self.cmd_adapter.start()
+
     def command_toggle(self):
-        """Custom hotkey: tap to start (capture selection + record instruction),
-        tap again to stop and transform."""
+        """Custom (non-chord) hotkey: tap to start (capture selection + record
+        instruction), tap again to stop and transform."""
         if self._cmd_recording:
             self._cmd_recording = False
             self._stop_and_transform()
@@ -145,26 +164,46 @@ class App:
             self._on_cmd_start()
 
     def _on_cmd_start(self):
-        selection = inject.capture_selection()
-        if not selection.strip():
-            beep("error", self.cfg["beeps"])
-            self.notifier.toast(self.t("select_text_first"))
+        # Fired eagerly by the chord on chord-complete, so guard against starting
+        # while dictation or another job is in flight (the recorder is shared).
+        if self.machine.is_recording() or self._gate.is_active() or self._cmd_recording:
             return
+        # NB: the selection is captured later, on the worker thread, AFTER the
+        # user releases the chord — sending Ctrl+C here would block the hook
+        # thread and (in hold-to-talk) fire while Win+Alt are still down.
         try:
             self.recorder.start()
         except MicError as e:
             beep("error", self.cfg["beeps"])
             self.notifier.toast(self.t("err_mic", error=str(e)))
             return
-        self._cmd_selection = selection
         self._cmd_recording = True
         beep("start", self.cfg["beeps"])
         self.overlay.show(self.t("command"), "command")
         self.set_tray_state("recording")
         self._gate.start_timer(self.cfg["max_recording_s"], self._cmd_auto_stop)
 
+    def _cmd_chord_stop(self):
+        """Chord released (hold) or toggled off (second tap)."""
+        if self._cmd_recording:
+            self._cmd_recording = False
+            self._stop_and_transform()
+        elif self.cmd_machine is not None:
+            self.cmd_machine.pipeline_done()   # start was guarded out; free the chord
+
+    def _cmd_chord_cancel(self):
+        """Esc / other key while the command chord is held."""
+        self._gate.cancel_timer()
+        if self._cmd_recording:
+            self._cmd_recording = False
+            self.recorder.cancel()
+            beep("cancel", self.cfg["beeps"])
+        self._finish_ui()
+
     def _cmd_auto_stop(self):
         if self._cmd_recording:
+            if self.cmd_machine is not None:
+                self.cmd_machine.external_stop()   # release fires no second stop
             self._cmd_recording = False
             self._stop_and_transform()
 
@@ -174,12 +213,21 @@ class App:
         beep("stop", self.cfg["beeps"])
         if not wav or not self._gate.try_begin():
             self._finish_ui()
+            if self.cmd_machine is not None:
+                self.cmd_machine.pipeline_done()
             return
-        self.overlay.show(self.t("transcribing"), "transcribing")
+        self.overlay.show(self.t("cmd_working"), "transcribing")
         self.set_tray_state("transcribing")
-        self.jobs.put(("command", wav, self._cmd_selection))
+        self.jobs.put(("command", wav))
 
-    def _run_command(self, wav: bytes, selection: str):
+    def _run_command(self, wav: bytes):
+        # Capture the selection here (worker thread) — by now the user has
+        # released the chord, so Ctrl+C isn't mangled by held modifiers.
+        selection = inject.capture_selection()
+        if not selection.strip():
+            beep("error", self.cfg["beeps"])
+            self.notifier.toast(self.t("select_text_first"))
+            return
         instruction = self._transcribe_with_retry(wav, None, None)
         if not instruction or not instruction.strip():
             if instruction is not None:
@@ -188,6 +236,8 @@ class App:
         if textcmds.is_learn_command(instruction):
             self._learn_from_selection(selection)
             return
+        # Now we know the instruction — say what it's doing instead of "transcribing".
+        self.overlay.show(self.t("cmd_applying", cmd=_shorten(instruction)), "transcribing")
         cu = self.cfg.get("cleanup", {})
         try:
             result = command.transform(
@@ -259,7 +309,7 @@ class App:
                 return
             try:
                 if kind == "command":
-                    self._run_command(job[1], job[2])
+                    self._run_command(job[1])
                 else:
                     self._transcribe_and_insert(job[1])
             except Exception:
@@ -268,6 +318,8 @@ class App:
             finally:
                 self._finish_ui()
                 self.machine.pipeline_done()
+                if self.cmd_machine is not None:
+                    self.cmd_machine.pipeline_done()
                 self._gate.end()
             if self._just_learned:                       # flag after the overlay clears
                 terms, self._just_learned = self._just_learned, None
@@ -545,10 +597,12 @@ class App:
 
     def shutdown(self):
         self._stopping = True
-        try:
-            self.adapter.stop()
-        except Exception:
-            log.debug("unhook failed", exc_info=True)
+        for adapter in (self.adapter, self.cmd_adapter):
+            if adapter is not None:
+                try:
+                    adapter.stop()
+                except Exception:
+                    log.debug("unhook failed", exc_info=True)
         self._gate.cancel_timer()
         self.recorder.cancel()
         self.jobs.put(("quit",))
@@ -561,26 +615,30 @@ class App:
         self.set_tray_state("idle")
 
     def _watchdog(self):
-        """Recover the hotkey if the global hook ever drops a key event and
-        leaves the machine wedged (non-idle while nothing is recording and no
-        job is in flight). Requires the wedge to persist two checks (~10s) so a
-        brief transient is never reset."""
-        stuck = None
+        """Recover a hotkey if the global hook ever drops a key event and leaves
+        a chord machine wedged (non-idle while nothing is recording and no job is
+        in flight). Requires the wedge to persist two checks (~10s) so a brief
+        transient is never reset. Covers both the dictation and command chords."""
+        stuck = {}
         while not self._stopping:
             time.sleep(WATCHDOG_INTERVAL_S)
             try:
-                wedged = (not self.machine.is_idle()
-                          and not self.recorder.is_active()
-                          and not self._gate.is_active()
-                          and not self._cmd_recording)
-                if wedged and self.machine.state == stuck:
-                    log.warning("hotkey watchdog: recovering stuck state %r",
-                                self.machine.state)
-                    self.machine.reset()
-                    self._finish_ui()
-                    stuck = None
-                else:
-                    stuck = self.machine.state if wedged else None
+                idle = (not self.recorder.is_active()
+                        and not self._gate.is_active()
+                        and not self._cmd_recording)
+                for name, m in (("dictation", self.machine),
+                                ("command", self.cmd_machine)):
+                    if m is None:
+                        continue
+                    wedged = idle and not m.is_idle()
+                    if wedged and m.state == stuck.get(name):
+                        log.warning("hotkey watchdog: recovering stuck %s state %r",
+                                    name, m.state)
+                        m.reset()
+                        self._finish_ui()
+                        stuck[name] = None
+                    else:
+                        stuck[name] = m.state if wedged else None
             except Exception:
                 log.debug("watchdog error", exc_info=True)
 
@@ -668,11 +726,16 @@ def main(argv=None) -> int:
 
     cmd_hotkey = cfg.get("command_hotkey", "alt+windows")
     if cmd_hotkey:
+        cmd_mods = chord_mods(cmd_hotkey)
         try:
-            import keyboard
+            if cmd_mods:
+                app.start_command_chord(cmd_mods)  # full hold/tap, like dictation
+                log.info("command hotkey %r (chord: hold or tap)", cmd_hotkey)
+            else:
+                import keyboard
 
-            keyboard.add_hotkey(cmd_hotkey, app.command_toggle)
-            log.info("command hotkey %r", cmd_hotkey)
+                keyboard.add_hotkey(cmd_hotkey, app.command_toggle)
+                log.info("command hotkey %r (toggle mode)", cmd_hotkey)
         except Exception:
             log.warning("could not register command hotkey %r", cmd_hotkey, exc_info=True)
 

@@ -1,6 +1,6 @@
 import pytest
 
-from app.hotkey import ChordMachine
+from app.hotkey import ChordMachine, KeyboardHookAdapter, chord_mods
 
 
 class FakeClock:
@@ -196,3 +196,86 @@ def test_in_chord_hint_for_start_menu_suppression(rig):
     assert m.handle("up", "ctrl") is True     # still draining busy chord keys
     m.pipeline_done()
     assert m.handle("down", "other") is False
+
+
+# -- generalized modifier pair (alt+win for command mode) --------------------
+
+def _alt_rig():
+    clock = FakeClock()
+    spy = Spy()
+    m = ChordMachine(on_start=spy.start, on_stop=spy.stop, on_cancel=spy.cancel,
+                     mods=("alt", "win"), tap_threshold_ms=400, clock=clock)
+    return m, spy, clock
+
+
+def test_alt_win_hold_push_to_talk():
+    m, spy, clock = _alt_rig()
+    m.handle("down", "alt")
+    m.handle("down", "win")
+    assert spy.calls == ["start"]
+    clock.advance(0.6)
+    m.handle("up", "win")
+    assert spy.calls == ["start", "stop"]
+
+
+def test_alt_win_tap_toggles():
+    m, spy, clock = _alt_rig()
+    m.handle("down", "alt")
+    m.handle("down", "win")
+    clock.advance(0.1)
+    m.handle("up", "win")
+    m.handle("up", "alt")
+    assert spy.calls == ["start"]      # still recording (toggled)
+    clock.advance(1.0)
+    m.handle("down", "alt")
+    m.handle("down", "win")            # second chord -> stop
+    assert spy.calls == ["start", "stop"]
+
+
+def test_alt_win_chord_ignores_foreign_modifier():
+    # ctrl is normalized to "other" for an alt+win chord and must never start it
+    m, spy, _ = _alt_rig()
+    m.handle("down", "other")   # e.g. ctrl
+    m.handle("down", "win")
+    assert spy.calls == []      # alt never pressed -> no start
+
+
+def test_default_mods_are_ctrl_win():
+    m = ChordMachine(lambda: None, lambda: None, lambda: None)
+    assert m.mods == ("ctrl", "win")
+
+
+def test_adapter_normalizes_for_its_own_mods():
+    cmd = KeyboardHookAdapter(ChordMachine(lambda: None, lambda: None, lambda: None,
+                                           mods=("alt", "win")))
+    assert cmd.normalize("left alt") == "alt"
+    assert cmd.normalize("right windows") == "win"
+    assert cmd.normalize("ctrl") == "other"     # foreign to this chord
+    assert cmd.normalize("escape") == "esc"
+
+    dic = KeyboardHookAdapter(ChordMachine(lambda: None, lambda: None, lambda: None))
+    assert dic.normalize("left ctrl") == "ctrl"
+    assert dic.normalize("alt") == "other"      # foreign to ctrl+win
+    assert dic.normalize("windows") == "win"
+
+
+def test_menu_guard_active_tracks_non_win_modifier():
+    m = ChordMachine(lambda: None, lambda: None, lambda: None, mods=("alt", "win"))
+    assert m.menu_guard_active() is False
+    m.handle("down", "alt")
+    assert m.menu_guard_active() is True        # alt held -> keep suppressing Start menu
+    m.handle("up", "alt")
+    assert m.menu_guard_active() is False
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("ctrl+windows", ("ctrl", "win")),
+    ("windows+ctrl", ("ctrl", "win")),
+    ("alt+windows", ("alt", "win")),
+    ("win+alt", ("alt", "win")),
+    ("f8", None),
+    ("ctrl+alt", None),
+    ("", None),
+])
+def test_chord_mods_parsing(text, expected):
+    assert chord_mods(text) == expected

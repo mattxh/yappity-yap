@@ -1,7 +1,17 @@
 import types
 
 from app import cleanup as cleanup_mod
-from app.__main__ import App
+from app.__main__ import App, _shorten
+
+
+def test_shorten_collapses_whitespace_and_keeps_short_text():
+    assert _shorten("  make   this  formal ") == "make this formal"
+
+
+def test_shorten_truncates_long_text_with_ellipsis():
+    out = _shorten("turn this into a long bulleted list of every single item we discussed", n=20)
+    assert len(out) <= 20
+    assert out.endswith("…")
 
 
 def _fake_app(enabled=True, dictionary=None):

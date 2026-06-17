@@ -34,9 +34,10 @@ def render_help(hotkey: str, command_hotkey: str) -> str:
     p.append("</ul>")
 
     p.append("<h2>Command mode — edit selected text by voice</h2><ul>")
-    p.append("<li>Select text, hold <b>Win+Alt</b>, and speak an instruction: "
-             "<i>“make this formal”, “summarize”, “turn into bullet points”, "
-             "“translate to English”</i>. The selection is replaced with the result.</li>")
+    p.append("<li>Select text, <b>hold Win+Alt</b> (or tap to start, tap to finish), and "
+             "speak an instruction: <i>“make this formal”, “summarize”, “turn into bullet "
+             "points”, “translate to English”</i>. The selection is replaced with the "
+             "result, and the overlay shows “Applying: …” while it works.</li>")
     p.append("<li>Fix a misheard word by hand, select the corrected text, then hold "
              "Win+Alt and say <i>“correct it”</i> — the app compares it to what it "
              "dictated and adds the fixed word to your dictionary right away.</li>")

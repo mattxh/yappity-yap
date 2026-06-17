@@ -43,9 +43,11 @@ dictation is saved to `history.jsonl` (tray → Open history).
 ## Command mode — voice-edit selected text
 
 Select some text, then **hold Win+Alt** and speak an instruction ("make this formal",
-"summarize", "turn into bullet points", "translate to English") — the selection is
-replaced with the result. The overlay shows a purple waveform while it listens. Change
-or disable the key with `command_hotkey` in config.json (set it to `""` to disable).
+"summarize", "turn into bullet points", "translate to English") — release and the
+selection is replaced with the result. Like dictation, you can also **tap Win+Alt** to
+start hands-free and tap again to finish. The overlay shows a purple waveform while it
+listens, then "Applying: …" with your instruction while it works. Change or disable the
+key with `command_hotkey` in config.json (set it to `""` to disable).
 
 **Teach a correction on the spot:** after you fix a misheard word by hand, select the
 corrected text, hold Win+Alt, and say **"correct it"** (or "learn this" / "remember
