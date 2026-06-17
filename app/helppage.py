@@ -37,6 +37,9 @@ def render_help(hotkey: str, command_hotkey: str) -> str:
     p.append("<li>Select text, hold <b>Win+Alt</b>, and speak an instruction: "
              "<i>“make this formal”, “summarize”, “turn into bullet points”, "
              "“translate to English”</i>. The selection is replaced with the result.</li>")
+    p.append("<li>Fix a misheard word by hand, select the corrected text, then hold "
+             "Win+Alt and say <i>“correct it”</i> — the app compares it to what it "
+             "dictated and adds the fixed word to your dictionary right away.</li>")
     p.append("</ul>")
 
     p.append("<h2>Snippets &amp; spoken formatting</h2><ul>")

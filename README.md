@@ -47,6 +47,12 @@ Select some text, then **hold Win+Alt** and speak an instruction ("make this for
 replaced with the result. The overlay shows a purple waveform while it listens. Change
 or disable the key with `command_hotkey` in config.json (set it to `""` to disable).
 
+**Teach a correction on the spot:** after you fix a misheard word by hand, select the
+corrected text, hold Win+Alt, and say **"correct it"** (or "learn this" / "remember
+this"). The app diffs it against what it just dictated and adds the fixed word to your
+dictionary immediately — no waiting for the 3×-rewrite auto-learn — with the same Undo
+notice.
+
 ## Snippets & spoken formatting
 
 - **Snippets:** add `"trigger phrase": "expansion"` pairs to `snippets` in config.json.

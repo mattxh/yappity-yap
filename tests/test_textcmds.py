@@ -1,4 +1,4 @@
-from app.textcmds import snippet_match, apply_spoken_formatting
+from app.textcmds import snippet_match, apply_spoken_formatting, is_learn_command
 
 
 def test_snippet_exact_match_case_and_punct_insensitive():
@@ -26,3 +26,14 @@ def test_spoken_formatting_commands():
 def test_spoken_formatting_non_command_returns_none():
     assert apply_spoken_formatting("hello world") is None
     assert apply_spoken_formatting("start a new line of business") is None
+
+
+def test_is_learn_command_matches_triggers():
+    for s in ["correct it", "Correct it.", "learn this", "add to dictionary",
+              "remember this", "記住"]:
+        assert is_learn_command(s) is True
+
+
+def test_is_learn_command_rejects_normal_instructions():
+    for s in ["make it formal", "summarize this", "translate to English", "hello there"]:
+        assert is_learn_command(s) is False

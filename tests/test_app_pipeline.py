@@ -74,6 +74,32 @@ def test_maybe_cleanup_empty_text_returns_raw(monkeypatch):
     assert called == []
 
 
+def _fake_learn_app(tmp_path, last_dictation):
+    return types.SimpleNamespace(
+        cfg={"cleanup": {"dictionary": [], "auto_learned": []}, "learn": {"min_ratio": 0.6}},
+        cfg_path=tmp_path / "config.json",
+        notifier=types.SimpleNamespace(toast=lambda *a, **k: None),
+        t=lambda key, **k: key,
+        _last_dictation=last_dictation,
+        _just_learned=None,
+    )
+
+
+def test_learn_from_selection_adds_corrected_word(tmp_path):
+    fake = _fake_learn_app(tmp_path, "email aditya today")
+    App._learn_from_selection(fake, "email Adithya today")   # user fixed the name
+    assert "Adithya" in fake.cfg["cleanup"]["dictionary"]
+    assert "Adithya" in fake.cfg["cleanup"]["auto_learned"]
+    assert fake._just_learned == ["Adithya"]
+
+
+def test_learn_from_selection_no_change_learns_nothing(tmp_path):
+    fake = _fake_learn_app(tmp_path, "hello world")
+    App._learn_from_selection(fake, "hello world")
+    assert fake.cfg["cleanup"]["dictionary"] == []
+    assert fake._just_learned is None
+
+
 def test_build_transcription_prompt(monkeypatch):
     fake = types.SimpleNamespace(cfg={"cleanup": {"dictionary": ["Foo", "Bar"]}})
     # vocabulary is included, but NO forced-Chinese directive (that translated English)
