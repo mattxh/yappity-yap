@@ -83,6 +83,28 @@ def test_preserves_language_keeps_mixed_codeswitch():
     assert preserves_language("用 VSCode 寫程式", "用 VSCode 寫程式。") is True
 
 
+def test_preserves_language_flags_partial_translation():
+    # the reported bug: English transcript, cleanup rendered 'Traditional Chinese' as 繁體中文
+    assert preserves_language("when I said replace in Traditional Chinese",
+                              "When I said replace in 繁體中文") is False
+
+
+def test_preserves_language_flags_english_injected_into_chinese():
+    # a Chinese-only transcript must not sprout English words
+    assert preserves_language("今天天氣很好", "Today the weather is 很好") is False
+
+
+def test_preserves_language_allows_english_with_digits_and_punct():
+    assert preserves_language("call me at 5 pm", "Call me at 5 PM.") is True
+
+
+def test_build_messages_auto_has_no_traditional_priming():
+    # the 'Traditional Chinese characters' phrase primed translation of that phrase;
+    # Traditional output is guaranteed by OpenCC downstream, not by the cleanup prompt
+    auto = build_messages("x", style="balanced", dictionary=[], language="auto")
+    assert "Traditional Chinese" not in auto[0]["content"]
+
+
 def test_added_content_flags_sentence_completion():
     # cleanup must not finish the thought
     assert added_content(
