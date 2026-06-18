@@ -62,6 +62,13 @@ def _parse_words(text: str) -> list:
     return out
 
 
+def _looks_like_term(text: str) -> bool:
+    """A dictionary entry should be a short term (a name/word/phrase), not a sentence."""
+    text = text.strip()
+    return bool(text) and len(text) <= 40 and len(text.split()) <= 4 and \
+        any(c.isalpha() for c in text)
+
+
 def _set_dpi_awareness():
     """Make the process per-monitor DPI-aware so the overlay renders at native
     pixels instead of being bitmap-stretched (blurry) on scaled displays."""
@@ -237,9 +244,11 @@ class App:
         self.jobs.put(("command", wav))
 
     def _run_command(self, wav: bytes):
-        # Capture the selection here (worker thread) — by now the user has
-        # released the chord, so Ctrl+C isn't mangled by held modifiers.
-        selection = inject.capture_selection()
+        # Capture the selection here (worker thread) — by now the user has released
+        # the chord, so Ctrl+C isn't mangled by held modifiers. Fall back to a
+        # keystroke-free UIA read if the clipboard copy comes back empty.
+        selection = inject.capture_selection() or (uia.read_selected_text() or "")
+        log.info("command: selection=%d chars", len(selection.strip()))
         if not selection.strip():
             beep("error", self.cfg["beeps"])
             self.notifier.toast(self.t("select_text_first"))
@@ -249,8 +258,9 @@ class App:
             if instruction is not None:
                 self.notifier.toast(self.t("err_empty"))
             return
+        log.info("command instruction: %r", instruction.strip()[:60])
         if textcmds.is_learn_command(instruction):
-            self._learn_from_selection(selection)
+            self._learn_from_selection(selection, instruction)
             return
         # Now we know the instruction — say what it's doing instead of "transcribing".
         self.overlay.show(self.t("cmd_applying", cmd=_shorten(instruction)), "transcribing")
@@ -277,26 +287,37 @@ class App:
                              cost=self._estimate_cost(dur), model=self._transcription_model())
         self.on_history_changed()
 
-    def _learn_from_selection(self, selection: str):
-        """'correct it' command: diff the last dictation against the corrected
-        selection and add the fixed words to the dictionary immediately."""
-        original = self._last_dictation
+    def _learn_from_selection(self, selection: str, instruction: str = ""):
+        """Voice dictionary command. Two modes:
+        - 'correct it' / 'learn this' after a dictation: diff the last dictation
+          against the corrected selection and add the fixed word.
+        - 'add to dictionary' (or any command when nothing was dictated yet): add
+          the selected term to the dictionary directly."""
         corrected = (selection or "").strip()
-        if not original or not corrected:
+        if not corrected:
             self.notifier.toast(self.t("no_corrections"))
             return
         cu = self.cfg.setdefault("cleanup", {})
-        dic = cu.setdefault("dictionary", [])
-        pairs = learn.extract_corrections(
-            original, original, corrected, known=set(dic),
-            min_ratio=self.cfg.get("learn", {}).get("min_ratio", 0.6))
         auto = cu.setdefault("auto_learned", [])
+        original = self._last_dictation
+        # Diff mode only for correction commands that have a prior dictation to compare.
+        use_diff = bool(original) and not textcmds.is_add_command(instruction)
         added = []
-        for _old, new in pairs:
-            if config_mod.add_word(self.cfg, new):
-                if new not in auto:
-                    auto.append(new)
-                added.append(new)
+        if use_diff:
+            pairs = learn.extract_corrections(
+                original, original, corrected, known=set(cu.get("dictionary", [])),
+                min_ratio=self.cfg.get("learn", {}).get("min_ratio", 0.6))
+            for _old, new in pairs:
+                if config_mod.add_word(self.cfg, new):
+                    if new not in auto:
+                        auto.append(new)
+                    added.append(new)
+        elif _looks_like_term(corrected):
+            if config_mod.add_word(self.cfg, corrected):
+                if corrected not in auto:
+                    auto.append(corrected)
+                added.append(corrected)
+        log.info("learn from selection: diff=%s added=%s", use_diff, added)
         if added:
             config_mod.save_config(self.cfg, self.cfg_path)
             self._just_learned = added       # flagged after the pipeline (notice + undo)

@@ -125,6 +125,40 @@ def test_learn_from_selection_no_change_learns_nothing(tmp_path):
     assert fake._just_learned is None
 
 
+def test_learn_from_selection_adds_term_when_nothing_dictated(tmp_path):
+    # 'add words to the dictionary' use case: no prior dictation to diff against,
+    # so the selected term is added directly.
+    fake = _fake_learn_app(tmp_path, "")
+    App._learn_from_selection(fake, "Adithya")
+    assert "Adithya" in fake.cfg["cleanup"]["dictionary"]
+    assert fake._just_learned == ["Adithya"]
+
+
+def test_learn_from_selection_add_command_adds_selection_after_dictation(tmp_path):
+    # 'add to dictionary' always adds the selection directly, even after a dictation.
+    fake = _fake_learn_app(tmp_path, "some earlier dictation text")
+    App._learn_from_selection(fake, "Bynder", "add to dictionary")
+    assert "Bynder" in fake.cfg["cleanup"]["dictionary"]
+    assert fake._just_learned == ["Bynder"]
+
+
+def test_learn_from_selection_ignores_a_sentence(tmp_path):
+    fake = _fake_learn_app(tmp_path, "")
+    App._learn_from_selection(fake, "this is a whole sentence not a dictionary term")
+    assert fake.cfg["cleanup"]["dictionary"] == []
+    assert fake._just_learned is None
+
+
+def test_looks_like_term():
+    from app.__main__ import _looks_like_term
+    assert _looks_like_term("Adithya")
+    assert _looks_like_term("git diff")
+    assert _looks_like_term("奇鋐")
+    assert not _looks_like_term("this is a whole sentence that is clearly not a term")
+    assert not _looks_like_term("12345")   # no letters
+    assert not _looks_like_term("")
+
+
 def test_offer_transcript_shows_copyable_overlay(monkeypatch):
     seen = {}
     fake = types.SimpleNamespace(

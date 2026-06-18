@@ -50,11 +50,19 @@ start hands-free and tap again to finish. The overlay shows a purple waveform wh
 listens, then "Applying: …" with your instruction while it works. Change or disable the
 key with `command_hotkey` in config.json (set it to `""` to disable).
 
-**Teach a correction on the spot:** after you fix a misheard word by hand, select the
-corrected text, hold Win+Alt, and say **"correct it"** (or "learn this" / "remember
-this"). The app diffs it against what it just dictated and adds the fixed word to your
-dictionary immediately — no waiting for the 3×-rewrite auto-learn — with the same Undo
-notice.
+**Add words to the dictionary by voice — two ways:**
+
+- **Add a word directly:** select the word (or short term) anywhere, hold Win+Alt, and
+  say **"add to dictionary"**. The selected text is added immediately. This does *not*
+  require dictating it first.
+- **Teach a correction:** right after dictating, fix a misheard word by hand, select the
+  corrected text, hold Win+Alt, and say **"correct it"** (or "learn this" / "remember
+  this"). The app diffs it against what it just dictated and adds the fixed word.
+
+Either way it's added immediately (no waiting for the 3×-rewrite auto-learn) with an Undo
+notice. You must have some text **selected** when you speak the command, and it must be a
+short term (not a whole sentence). The tray → **Add words…** dialog is the no-voice
+alternative.
 
 ## Snippets & spoken formatting
 

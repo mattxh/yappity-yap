@@ -41,9 +41,13 @@ def render_help(hotkey: str, command_hotkey: str) -> str:
              "speak an instruction: <i>“make this formal”, “summarize”, “turn into bullet "
              "points”, “translate to English”</i>. The selection is replaced with the "
              "result, and the overlay shows “Applying: …” while it works.</li>")
-    p.append("<li>Fix a misheard word by hand, select the corrected text, then hold "
-             "Win+Alt and say <i>“correct it”</i> — the app compares it to what it "
-             "dictated and adds the fixed word to your dictionary right away.</li>")
+    p.append("<li><b>Add a word to the dictionary:</b> select the word, hold Win+Alt and "
+             "say <i>“add to dictionary”</i> — the selected term is added right away "
+             "(no need to dictate it first).</li>")
+    p.append("<li><b>Correct a dictated word:</b> right after dictating, fix a misheard "
+             "word by hand, select the corrected text, hold Win+Alt and say "
+             "<i>“correct it”</i> — the app compares it to what it dictated and adds the "
+             "fix. Either way you must have text <b>selected</b> when you speak.</li>")
     p.append("</ul>")
 
     p.append("<h2>Snippets &amp; spoken formatting</h2><ul>")

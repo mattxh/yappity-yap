@@ -97,11 +97,18 @@ def capture_selection(settle_ms: int = 130) -> str:
     except Exception:
         log.exception("copy failed")
         return ""
-    time.sleep(settle_ms / 1000.0)
-    try:
-        got = pyperclip.paste() or ""
-    except Exception:
-        got = ""
+    # Poll the clipboard rather than waiting a single fixed delay: some apps update
+    # it slowly, so a one-shot read often saw the sentinel and reported 'no selection'.
+    got = _NO_SELECTION
+    deadline = time.monotonic() + max(settle_ms, 700) / 1000.0
+    while time.monotonic() < deadline:
+        time.sleep(0.04)
+        try:
+            got = pyperclip.paste() or ""
+        except Exception:
+            got = ""
+        if got != _NO_SELECTION:
+            break
     # Always restore the user's clipboard — reading the selection must not clobber it.
     try:
         pyperclip.copy(prev)

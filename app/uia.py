@@ -76,6 +76,37 @@ def focused_is_text_input():
         return None
 
 
+def read_selected_text() -> str | None:
+    """Return the currently selected text via TextPattern.GetSelection (no keystrokes),
+    or None if there's no selection or UIA can't read it. Used as a fallback when the
+    Ctrl+C copy comes back empty."""
+    iuia, lib = _client()
+    if iuia is None:
+        return None
+    try:
+        el = iuia.GetFocusedElement()
+        if el is None:
+            return None
+        patt = el.GetCurrentPattern(lib.UIA_TextPatternId)
+        if not patt:
+            return None
+        tp = patt.QueryInterface(lib.IUIAutomationTextPattern)
+        ranges = tp.GetSelection()
+        if ranges is None or ranges.Length <= 0:
+            return None
+        parts = []
+        for i in range(ranges.Length):
+            try:
+                parts.append(ranges.GetElement(i).GetText(-1))
+            except Exception:
+                pass
+        text = "".join(parts).strip()
+        return text or None
+    except Exception:
+        log.debug("read_selected_text failed", exc_info=True)
+        return None
+
+
 def read_focused_text() -> str | None:
     """Return the focused control's text (ValuePattern, else TextPattern), or None."""
     iuia, lib = _client()

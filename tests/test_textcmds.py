@@ -1,4 +1,5 @@
-from app.textcmds import snippet_match, apply_spoken_formatting, is_learn_command
+from app.textcmds import (snippet_match, apply_spoken_formatting, is_learn_command,
+                          is_add_command)
 
 
 def test_snippet_exact_match_case_and_punct_insensitive():
@@ -37,3 +38,14 @@ def test_is_learn_command_matches_triggers():
 def test_is_learn_command_rejects_normal_instructions():
     for s in ["make it formal", "summarize this", "translate to English", "hello there"]:
         assert is_learn_command(s) is False
+
+
+def test_is_add_command_matches_add_phrases():
+    for s in ["add to dictionary", "Add to the dictionary.", "add word", "加入字典"]:
+        assert is_add_command(s) is True
+        assert is_learn_command(s) is True   # add phrases are also learn commands
+
+
+def test_is_add_command_rejects_correct_phrases():
+    for s in ["correct it", "learn this", "remember this", "記住", "make it formal"]:
+        assert is_add_command(s) is False
