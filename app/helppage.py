@@ -44,10 +44,10 @@ def render_help(hotkey: str, command_hotkey: str) -> str:
     p.append("<li><b>Add a word to the dictionary:</b> select the word, hold Win+Alt and "
              "say <i>“add to dictionary”</i> — the selected term is added right away "
              "(no need to dictate it first).</li>")
-    p.append("<li><b>Correct a dictated word:</b> right after dictating, fix a misheard "
-             "word by hand, select the corrected text, hold Win+Alt and say "
-             "<i>“correct it”</i> — the app compares it to what it dictated and adds the "
-             "fix. Either way you must have text <b>selected</b> when you speak.</li>")
+    p.append("<li><b>Teach a fix:</b> right after dictating, fix a misheard word by hand, "
+             "select the corrected text, hold Win+Alt and say <i>“learn this fix”</i> — "
+             "the app compares it to what it dictated and saves the corrected spelling. "
+             "Either way you must have text <b>selected</b> when you speak.</li>")
     p.append("</ul>")
 
     p.append("<h2>Snippets &amp; spoken formatting</h2><ul>")

@@ -55,9 +55,10 @@ key with `command_hotkey` in config.json (set it to `""` to disable).
 - **Add a word directly:** select the word (or short term) anywhere, hold Win+Alt, and
   say **"add to dictionary"**. The selected text is added immediately. This does *not*
   require dictating it first.
-- **Teach a correction:** right after dictating, fix a misheard word by hand, select the
-  corrected text, hold Win+Alt, and say **"correct it"** (or "learn this" / "remember
-  this"). The app diffs it against what it just dictated and adds the fixed word.
+- **Teach a fix:** right after dictating, fix a misheard word by hand, select the
+  corrected text, hold Win+Alt, and say **"learn this fix"** (also accepts "correct it" /
+  "learn this"). The app diffs it against what it just dictated and adds the corrected
+  spelling — so the same word comes out right next time.
 
 Either way it's added immediately (no waiting for the 3×-rewrite auto-learn) with an Undo
 notice. You must have some text **selected** when you speak the command, and it must be a

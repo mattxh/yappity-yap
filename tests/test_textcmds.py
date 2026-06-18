@@ -49,3 +49,9 @@ def test_is_add_command_matches_add_phrases():
 def test_is_add_command_rejects_correct_phrases():
     for s in ["correct it", "learn this", "remember this", "記住", "make it formal"]:
         assert is_add_command(s) is False
+
+
+def test_learn_this_fix_is_a_correction_command():
+    assert is_learn_command("learn this fix") is True
+    assert is_learn_command("Learn this fix.") is True
+    assert is_add_command("learn this fix") is False   # diff mode, not direct add

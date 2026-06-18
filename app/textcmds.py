@@ -16,8 +16,9 @@ _STRIP = " .!?。！？，,"
 # Spoken instructions (in command mode) that mean "fix the word I just dictated":
 # diff the last dictation against the selection.
 _CORRECT_COMMANDS = {
-    "correct it", "correct this", "correct that", "learn this", "learn that",
-    "learn it", "learn these", "remember this", "remember that", "remember these",
+    "learn this fix", "learn the fix", "correct it", "correct this", "correct that",
+    "learn this", "learn that", "learn it", "learn these",
+    "remember this", "remember that", "remember these",
     "記住", "記下來", "學起來",
 }
 # Instructions that mean "add the selected text to the dictionary" — a direct add,
