@@ -76,7 +76,7 @@ def run_tray(app, on_ready=None):
         for entry in entries:
             text = entry.get("text", "")
             preview = ((text[:40] + "…") if len(text) > 40 else text).replace("\n", " ")
-            items.append(Item(preview, (lambda tx: lambda: app.reinsert(tx))(text)))
+            items.append(Item(preview, (lambda tx: lambda: app.copy_recent(tx))(text)))
         return Menu(*items)
 
     def remove_menu():

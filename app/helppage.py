@@ -77,7 +77,8 @@ def render_help(hotkey: str, command_hotkey: str) -> str:
     p.append("<h2>Dashboard &amp; history</h2><ul>")
     p.append("<li>Tray → <b>Dashboard</b>: dictionary (saved vs auto-added), cost &amp; "
              "usage by day, trends, and pending corrections.</li>")
-    p.append("<li>Tray → <b>Recent</b> re-inserts a past dictation; <b>Usage stats</b> "
+    p.append("<li>Tray → <b>Recent</b> copies a past dictation to the clipboard; "
+             "<b>Usage stats</b> "
              "shows totals; <b>Open history</b> is a searchable log.</li>")
     p.append("</ul>")
 

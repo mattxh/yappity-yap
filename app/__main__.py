@@ -552,8 +552,10 @@ class App:
     def recent_entries(self, n: int = 8):
         return history.tail(history.HISTORY_PATH, n)
 
-    def reinsert(self, text: str):
-        inject.insert_text(text)
+    def copy_recent(self, text: str):
+        """Tray 'Recent' click: copy the past dictation to the clipboard."""
+        if inject.set_clipboard(text):
+            self.notifier.toast(self.t("copied_to_clipboard"))
 
     def show_stats(self):
         s = history.stats(history.read_entries(history.HISTORY_PATH))

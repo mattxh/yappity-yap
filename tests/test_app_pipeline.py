@@ -135,6 +135,19 @@ def test_looks_like_term():
     assert not _looks_like_term("")
 
 
+def test_copy_recent_copies_to_clipboard(monkeypatch):
+    from app import inject as inject_mod
+    copied, toasts = {}, []
+    monkeypatch.setattr(inject_mod, "set_clipboard", lambda t: copied.update(t=t) or True)
+    fake = types.SimpleNamespace(
+        notifier=types.SimpleNamespace(toast=lambda msg, **k: toasts.append(msg)),
+        t=lambda key, **k: key,
+    )
+    App.copy_recent(fake, "hello world")
+    assert copied["t"] == "hello world"
+    assert toasts == ["copied_to_clipboard"]
+
+
 def test_offer_transcript_shows_copyable_overlay(monkeypatch):
     seen = {}
     fake = types.SimpleNamespace(

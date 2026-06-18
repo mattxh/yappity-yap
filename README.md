@@ -168,7 +168,7 @@ key, and `cleanup.model` to e.g. `llama-3.3-70b-versatile`.
 
 Right-click the tray icon for: **Clean up text** toggle · **Cleanup style** (light/
 balanced/heavy) · **Language** · **Provider** (OpenAI/ElevenLabs/Groq — switches live) ·
-**UI language** · **Recent** (last 8 dictations — click to re-insert) · **Add words…** ·
+**UI language** · **Recent** (last 8 dictations — click to copy to clipboard) · **Add words…** ·
 **Remove word** (click a word to delete it) · **Dashboard** (dictionary, cost/usage,
 trends) · **Usage stats** · **Retry last recording** · **Open history** (searchable) ·
 **Open config** · **Help** (everything the app does) · **Start with Windows** ·
