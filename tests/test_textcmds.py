@@ -1,5 +1,4 @@
-from app.textcmds import (snippet_match, apply_spoken_formatting, is_learn_command,
-                          is_add_command)
+from app.textcmds import snippet_match, apply_spoken_formatting, is_learn_command
 
 
 def test_snippet_exact_match_case_and_punct_insensitive():
@@ -29,29 +28,13 @@ def test_spoken_formatting_non_command_returns_none():
     assert apply_spoken_formatting("start a new line of business") is None
 
 
-def test_is_learn_command_matches_triggers():
-    for s in ["correct it", "Correct it.", "learn this", "add to dictionary",
-              "remember this", "記住"]:
+def test_is_learn_command_matches_add_phrases():
+    for s in ["add to dictionary", "Add to the dictionary.", "add word", "加入字典"]:
         assert is_learn_command(s) is True
 
 
-def test_is_learn_command_rejects_normal_instructions():
-    for s in ["make it formal", "summarize this", "translate to English", "hello there"]:
+def test_is_learn_command_rejects_correction_and_normal_phrases():
+    # the diff-based correction command was removed; only 'add to dictionary' remains
+    for s in ["learn this fix", "correct it", "learn this", "remember this", "記住",
+              "make it formal", "summarize this", "hello there"]:
         assert is_learn_command(s) is False
-
-
-def test_is_add_command_matches_add_phrases():
-    for s in ["add to dictionary", "Add to the dictionary.", "add word", "加入字典"]:
-        assert is_add_command(s) is True
-        assert is_learn_command(s) is True   # add phrases are also learn commands
-
-
-def test_is_add_command_rejects_correct_phrases():
-    for s in ["correct it", "learn this", "remember this", "記住", "make it formal"]:
-        assert is_add_command(s) is False
-
-
-def test_learn_this_fix_is_a_correction_command():
-    assert is_learn_command("learn this fix") is True
-    assert is_learn_command("Learn this fix.") is True
-    assert is_add_command("learn this fix") is False   # diff mode, not direct add

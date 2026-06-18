@@ -114,7 +114,6 @@ class App:
         self.on_history_changed = lambda: None    # replaced by tray (refresh Recent)
         self._pending_learn = None   # (inserted_text, field_snapshot) for auto-learn
         self._just_learned = None    # terms promoted this run -> flagged after the pipeline
-        self._last_dictation = ""    # last inserted text, for the "correct it" command
         self._gate = JobGate()   # serializes jobs + owns the auto-stop timer
         self._cmd_recording = False
         self._stopping = False
@@ -287,42 +286,23 @@ class App:
                              cost=self._estimate_cost(dur), model=self._transcription_model())
         self.on_history_changed()
 
-    def _learn_from_selection(self, selection: str, instruction: str = ""):
-        """Voice dictionary command. Two modes:
-        - 'correct it' / 'learn this' after a dictation: diff the last dictation
-          against the corrected selection and add the fixed word.
-        - 'add to dictionary' (or any command when nothing was dictated yet): add
-          the selected term to the dictionary directly."""
+    def _learn_from_selection(self, selection: str):
+        """'add to dictionary' command: add the selected term to the dictionary."""
         corrected = (selection or "").strip()
-        if not corrected:
-            self.notifier.toast(self.t("no_corrections"))
-            return
         cu = self.cfg.setdefault("cleanup", {})
         auto = cu.setdefault("auto_learned", [])
-        original = self._last_dictation
-        # Diff mode only for correction commands that have a prior dictation to compare.
-        use_diff = bool(original) and not textcmds.is_add_command(instruction)
         added = []
-        if use_diff:
-            pairs = learn.extract_corrections(
-                original, original, corrected, known=set(cu.get("dictionary", [])),
-                min_ratio=self.cfg.get("learn", {}).get("min_ratio", 0.6))
-            for _old, new in pairs:
-                if config_mod.add_word(self.cfg, new):
-                    if new not in auto:
-                        auto.append(new)
-                    added.append(new)
-        elif _looks_like_term(corrected):
+        if _looks_like_term(corrected):
             if config_mod.add_word(self.cfg, corrected):
                 if corrected not in auto:
                     auto.append(corrected)
                 added.append(corrected)
-        log.info("learn from selection: diff=%s added=%s", use_diff, added)
+        log.info("add word from selection: added=%s", added)
         if added:
             config_mod.save_config(self.cfg, self.cfg_path)
             self._just_learned = added       # flagged after the pipeline (notice + undo)
         else:
-            self.notifier.toast(self.t("no_corrections"))
+            self.notifier.toast(self.t("add_select_term"))
 
     def _stop_and_enqueue(self):
         self._gate.cancel_timer()
@@ -395,7 +375,6 @@ class App:
             inject.insert_text(final)
             if self.cfg.get("notify_on_insert"):
                 self.notifier.toast(self.t("done_notify", chars=len(final)))
-            self._last_dictation = final
             self._set_pending_learn(final)
         dur = wav_duration(wav)
         history.append_entry(history.HISTORY_PATH, lang=lang, duration_s=dur, text=final,
