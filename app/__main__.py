@@ -350,8 +350,10 @@ class App:
             log.warning("could not save last_recording.wav")
         lang = self.cfg.get("language", "auto")
         language = None if lang == "auto" else lang
-        prompt = self._build_transcription_prompt(lang)
-        text = self._transcribe_with_retry(wav, language, prompt)
+        # NB: no transcription prompt. Passing the (Chinese) dictionary as the prompt
+        # biased Whisper-derived models to transcribe English speech as Chinese. The
+        # dictionary still applies during cleanup. Pinning language also stays honored.
+        text = self._transcribe_with_retry(wav, language, None)
         if text is None:
             return  # already notified
         snippet = textcmds.snippet_match(text, self.cfg.get("snippets", {}))
@@ -471,15 +473,6 @@ class App:
     def _estimate_cost(self, duration_s: float) -> float:
         return costs.estimate_cost(duration_s, self._transcription_model(),
                                    self.cfg.get("cleanup", {}).get("enabled", True))
-
-    def _build_transcription_prompt(self, lang):
-        # Note: do NOT inject a "output Chinese" directive for lang=='zh' — that
-        # translated English speech. language='zh' biases Mandarin recognition and
-        # OpenCC guarantees Traditional output downstream.
-        terms = self.cfg.get("cleanup", {}).get("dictionary", [])
-        if terms:
-            return "Vocabulary: " + ", ".join(terms) + "."
-        return None
 
     def _maybe_cleanup(self, text, lang):
         cu = self.cfg.get("cleanup", {})

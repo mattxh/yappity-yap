@@ -96,7 +96,9 @@ names) — one per line or separated by commas — and they're added to your dic
 **immediately**, no restart. To delete one, tray → **Remove word** lists your dictionary
 (auto-added words are marked `(auto)`) — click one to remove it. Or edit `config.json` →
 `cleanup.dictionary` directly and restart.
-Dictionary words bias both transcription and the cleanup pass toward spelling them right.
+Dictionary words guide the cleanup pass toward spelling them right. (They are not sent as
+a transcription hint — a non-English vocabulary list there biased the model into
+translating, so spelling is fixed during cleanup instead.)
 
 ### Auto-learning the dictionary (opt-in)
 

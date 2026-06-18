@@ -173,7 +173,6 @@ def _dictation_fake(calls):
              "append_space": False, "notify_on_insert": False, "show_overlay": True},
         notifier=types.SimpleNamespace(toast=lambda *a, **k: None),
         _consume_pending_learn=lambda: None,
-        _build_transcription_prompt=lambda lang: None,
         _transcribe_with_retry=lambda wav, language, prompt: "hello",
         _maybe_cleanup=lambda text, lang: text,
         _estimate_cost=lambda dur: 0.0,
@@ -211,13 +210,14 @@ def test_transcribe_offers_copy_when_focus_not_text_field(monkeypatch, tmp_path)
     assert "inserted" not in calls
 
 
-def test_build_transcription_prompt(monkeypatch):
-    fake = types.SimpleNamespace(cfg={"cleanup": {"dictionary": ["Foo", "Bar"]}})
-    # vocabulary is included, but NO forced-Chinese directive (that translated English)
-    p_zh = App._build_transcription_prompt(fake, "zh")
-    assert "Foo" in p_zh and "Bar" in p_zh
-    assert "繁體" not in p_zh
-    # empty dictionary -> nothing to send, in any language
-    fake_empty = types.SimpleNamespace(cfg={"cleanup": {"dictionary": []}})
-    assert App._build_transcription_prompt(fake_empty, "zh") is None
-    assert App._build_transcription_prompt(fake_empty, "auto") is None
+def test_transcribe_sends_no_prompt(monkeypatch, tmp_path):
+    # the dictionary must NOT be sent as the transcription prompt — a Chinese vocabulary
+    # prompt biased the model into translating English speech to Chinese.
+    calls = {}
+    _patch_dictation(monkeypatch, tmp_path, calls, editable=True)
+    fake = _dictation_fake(calls)
+    seen = {}
+    fake._transcribe_with_retry = lambda wav, language, prompt: (
+        seen.update(language=language, prompt=prompt) or "hello")
+    App._transcribe_and_insert(fake, b"x" * 200)
+    assert seen["prompt"] is None

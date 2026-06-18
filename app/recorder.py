@@ -3,12 +3,14 @@ import array
 import io
 import logging
 import threading
+import time
 import wave
 
 log = logging.getLogger(__name__)
 
 SAMPLERATE = 16000
 MIN_DURATION_S = 0.3
+TAIL_MS = 250          # keep capturing this long after stop so the last word isn't clipped
 _LEVEL_GAIN = 2500.0  # RMS divisor → ~0..1; lower = more sensitive
 
 
@@ -97,8 +99,13 @@ class Recorder:
             self._stream = None
             raise MicError(str(e)) from e
 
-    def stop(self) -> bytes | None:
-        """Stop and return WAV bytes, or None if too short or too quiet to be speech."""
+    def stop(self, tail_ms: int = TAIL_MS) -> bytes | None:
+        """Stop and return WAV bytes, or None if too short or too quiet to be speech.
+
+        Keeps recording for a short tail so the end of the sentence isn't clipped when
+        the user releases the key right as they finish the last word."""
+        if tail_ms and self._stream is not None:
+            time.sleep(tail_ms / 1000.0)
         peak = self._peak
         raw = self._close()
         if duration_of(raw) < MIN_DURATION_S:
