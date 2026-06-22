@@ -259,7 +259,7 @@ class App:
             return
         log.info("command instruction: %r", instruction.strip()[:60])
         if textcmds.is_learn_command(instruction):
-            self._learn_from_selection(selection, instruction)
+            self._learn_from_selection(selection)
             return
         # Now we know the instruction — say what it's doing instead of "transcribing".
         self.overlay.show(self.t("cmd_applying", cmd=_shorten(instruction)), "transcribing")
@@ -369,9 +369,11 @@ class App:
             if not final.strip():
                 self.notifier.toast(self.t("err_empty"))
                 return
-        if uia.focused_is_text_input() is False:
-            # Cursor isn't in a text field — Ctrl+V would go nowhere. Offer the
-            # transcript so the user can copy it instead of losing it.
+        editable = uia.focused_is_text_input()
+        log.info("dictation: editable=%s, %d chars", editable, len(final))
+        if editable is False:
+            # Cursor is clearly on a non-text control (a button, menu, …) — Ctrl+V would
+            # go nowhere. Offer the transcript so the user can copy it instead.
             self._offer_transcript(final)
         else:
             inject.insert_text(final)

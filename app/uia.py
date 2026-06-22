@@ -36,9 +36,10 @@ def _client():
 def focused_is_text_input():
     """Best-effort: is the focused control somewhere a paste (Ctrl+V) would land?
 
-    Returns True for editable text controls, False for clearly non-text controls
-    (buttons, panes/desktop, list items, …), and None when UIA can't tell — callers
-    should treat None as 'probably fine, go ahead and paste'.
+    Deliberately conservative — it returns False ONLY for controls that clearly can't
+    take typed text (a button, menu item, checkbox, …). Real text boxes, rich editors,
+    containers and anything ambiguous return True/None so the caller pastes as normal.
+    This avoids the far worse failure of diverting a genuine paste to the copy overlay.
     """
     iuia, lib = _client()
     if iuia is None:
@@ -47,11 +48,20 @@ def focused_is_text_input():
         el = iuia.GetFocusedElement()
         if el is None:
             return None
+        # Editable signals -> definitely paste.
         try:
             patt = el.GetCurrentPattern(lib.UIA_ValuePatternId)
             if patt:
                 vp = patt.QueryInterface(lib.IUIAutomationValuePattern)
-                return not vp.CurrentIsReadOnly   # writable edit -> True, read-only -> False
+                if not vp.CurrentIsReadOnly:
+                    return True
+                # a read-only ValuePattern is NOT proof it can't take a paste (many
+                # editable controls mis-report it) — fall through, don't conclude False
+        except Exception:
+            pass
+        try:
+            if el.GetCurrentPattern(lib.UIA_TextPatternId):
+                return True   # a text surface (editor, doc, code editor)
         except Exception:
             pass
         try:
@@ -60,17 +70,17 @@ def focused_is_text_input():
             return None
         if ctype in (lib.UIA_EditControlTypeId, lib.UIA_DocumentControlTypeId):
             return True
-        non_text = {
-            lib.UIA_ButtonControlTypeId, lib.UIA_CheckBoxControlTypeId,
-            lib.UIA_RadioButtonControlTypeId, lib.UIA_MenuItemControlTypeId,
-            lib.UIA_HyperlinkControlTypeId, lib.UIA_TabItemControlTypeId,
-            lib.UIA_ListItemControlTypeId, lib.UIA_TreeItemControlTypeId,
-            lib.UIA_ImageControlTypeId, lib.UIA_PaneControlTypeId,
-            lib.UIA_WindowControlTypeId, lib.UIA_TextControlTypeId,
-        }
-        if ctype in non_text:
-            return False
-        return None
+        # Only these clearly can't receive typed text. Everything else (panes, groups,
+        # lists, unknown custom controls) is treated as paste-able.
+        try:
+            non_text = {
+                lib.UIA_ButtonControlTypeId, lib.UIA_CheckBoxControlTypeId,
+                lib.UIA_RadioButtonControlTypeId, lib.UIA_MenuItemControlTypeId,
+                lib.UIA_HyperlinkControlTypeId, lib.UIA_TabItemControlTypeId,
+            }
+        except Exception:
+            return None
+        return False if ctype in non_text else None
     except Exception:
         log.debug("focused_is_text_input failed", exc_info=True)
         return None

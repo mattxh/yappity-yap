@@ -135,6 +135,24 @@ def test_looks_like_term():
     assert not _looks_like_term("")
 
 
+def test_run_command_add_to_dictionary_routes_to_learn(monkeypatch):
+    # regression: _run_command called _learn_from_selection with a stale extra arg,
+    # crashing every 'add to dictionary' as 'transcription failed'.
+    import app.__main__ as m
+    monkeypatch.setattr(m.inject, "capture_selection", lambda: "Adithya")
+    monkeypatch.setattr(m.uia, "read_selected_text", lambda: None)
+    monkeypatch.setattr(m, "beep", lambda *a, **k: None)
+    seen = {}
+    fake = types.SimpleNamespace(
+        cfg={"beeps": False},
+        notifier=types.SimpleNamespace(toast=lambda *a, **k: None),
+        _transcribe_with_retry=lambda wav, language, prompt: "add to dictionary",
+        _learn_from_selection=lambda selection: seen.__setitem__("sel", selection),
+    )
+    App._run_command(fake, b"x" * 200)
+    assert seen.get("sel") == "Adithya"
+
+
 def test_copy_recent_copies_to_clipboard(monkeypatch):
     from app import inject as inject_mod
     copied, toasts = {}, []
