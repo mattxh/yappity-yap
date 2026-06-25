@@ -1,8 +1,9 @@
 """Insert text into the focused app: clipboard + simulated Ctrl+V.
 
-Pasting (not typing) is required for Chinese text (IME-safe). The user's clipboard
-is preserved: we copy the text, paste, then restore whatever was there before, so
-dictation/command output never clobbers the clipboard.
+Pasting (not typing) is required for Chinese text (IME-safe). The pasted text is left
+on the clipboard on purpose: restoring the previous clipboard after the paste raced with
+apps that read the clipboard slightly late, so they pasted the OLD clipboard instead of
+the transcript. (capture_selection still restores — it only reads, so it can't race.)
 """
 import logging
 import time
@@ -27,17 +28,13 @@ def _wait_modifiers_released(timeout_s: float = 1.0):
         time.sleep(0.02)
 
 
-def insert_text(text: str, settle_ms: int = 150, restore_clipboard: bool = True,
-                restore_delay_ms: int = 400):
+def insert_text(text: str, settle_ms: int = 150):
+    """Paste text into the focused app via the clipboard + Ctrl+V (IME-safe).
+
+    The text is intentionally left on the clipboard afterwards — see the module note."""
     import keyboard
     import pyperclip
 
-    prior = None
-    if restore_clipboard:
-        try:
-            prior = pyperclip.paste()
-        except Exception:
-            prior = None
     pyperclip.copy(text)
     _wait_modifiers_released()
     time.sleep(settle_ms / 1000.0)
@@ -45,14 +42,6 @@ def insert_text(text: str, settle_ms: int = 150, restore_clipboard: bool = True,
         keyboard.send("ctrl+v")
     except Exception:
         log.exception("paste failed (text remains on clipboard)")
-        return
-    if restore_clipboard and prior is not None:
-        # let the target app consume the paste before we put the old clipboard back
-        time.sleep(restore_delay_ms / 1000.0)
-        try:
-            pyperclip.copy(prior)
-        except Exception:
-            log.debug("clipboard restore failed", exc_info=True)
 
 
 _NO_SELECTION = "\x00\x00__voicetotext_no_selection__\x00\x00"

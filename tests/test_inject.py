@@ -38,24 +38,17 @@ def test_capture_selection_empty_when_nothing_selected(monkeypatch):
     assert store["v"] == "PREV"   # clipboard restored, sentinel not left behind
 
 
-def test_insert_text_pastes_the_text_then_restores_clipboard(monkeypatch):
+def test_insert_text_pastes_and_leaves_text_on_clipboard(monkeypatch):
     clip, store = _fake_clipboard(initial="ORIGINAL")
     seen = {}
     # capture what's on the clipboard at the moment Ctrl+V fires
     kb = types.SimpleNamespace(send=lambda combo: seen.__setitem__("at_paste", store["v"]),
                                is_pressed=lambda k: False)
     _install(monkeypatch, clip, kb)
-    inject.insert_text("HELLO", settle_ms=0, restore_delay_ms=0)
-    assert seen["at_paste"] == "HELLO"   # the transcript was on the clipboard for the paste
-    assert store["v"] == "ORIGINAL"      # ...but the user's clipboard is restored afterwards
-
-
-def test_insert_text_can_skip_restore(monkeypatch):
-    clip, store = _fake_clipboard(initial="ORIGINAL")
-    kb = types.SimpleNamespace(send=lambda combo: None, is_pressed=lambda k: False)
-    _install(monkeypatch, clip, kb)
-    inject.insert_text("HELLO", settle_ms=0, restore_clipboard=False)
-    assert store["v"] == "HELLO"         # left on the clipboard when restore is off
+    inject.insert_text("HELLO", settle_ms=0)
+    assert seen["at_paste"] == "HELLO"   # the transcript is on the clipboard for the paste
+    assert store["v"] == "HELLO"         # and stays there — no racy restore that could
+    #                                      paste the OLD clipboard instead
 
 
 def test_set_clipboard_copies(monkeypatch):
