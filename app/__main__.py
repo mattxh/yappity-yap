@@ -356,6 +356,7 @@ class App:
         text = self._transcribe_with_retry(wav, language, None)
         if text is None:
             return  # already notified
+        log.info("raw transcript (%d chars): %r", len(text), text[:300])
         snippet = textcmds.snippet_match(text, self.cfg.get("snippets", {}))
         fmt = (textcmds.apply_spoken_formatting(text)
                if self.cfg.get("spoken_formatting", True) else None)
@@ -370,7 +371,7 @@ class App:
                 self.notifier.toast(self.t("err_empty"))
                 return
         editable = uia.focused_is_text_input()
-        log.info("dictation: editable=%s, %d chars", editable, len(final))
+        log.info("final text (%d chars): %r | editable=%s", len(final), final[:300], editable)
         if editable is False:
             # Cursor is clearly on a non-text control (a button, menu, …) — Ctrl+V would
             # go nowhere. Offer the transcript so the user can copy it instead.
@@ -513,6 +514,7 @@ class App:
         if cleanup.answered_instead_of_cleaned(text, cleaned, cu.get("style", "balanced")):
             log.warning("cleanup answered instead of cleaning; keeping the raw transcript")
             return text
+        log.info("cleanup: %d -> %d chars", len(text), len(cleaned))
         return cleaned
 
     # -- tray actions (tray thread) --------------------------------------------

@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 SAMPLERATE = 16000
 MIN_DURATION_S = 0.3
 TAIL_MS = 250          # keep capturing this long after stop so the last word isn't clipped
+BLOCKSIZE = 1600       # 100 ms blocks — fewer, steadier callbacks resist input overflow
 _LEVEL_GAIN = 2500.0  # RMS divisor → ~0..1; lower = more sensitive
 
 
@@ -79,20 +80,28 @@ class Recorder:
             self._peak = 0.0
 
         def callback(indata, frames, time_info, status):
+            # Keep this lean — slow callbacks cause input overflow (dropped audio).
+            # Copy the bytes into the buffer first; compute the meter level afterwards.
             if status:
                 log.warning("audio status: %s", status)
             data = bytes(indata)
             with self._lock:
                 self._buf.extend(data)
-            lvl = compute_level(data)
-            self._level = lvl
-            if lvl > self._peak:
-                self._peak = lvl
+            try:
+                lvl = compute_level(data)
+                self._level = lvl
+                if lvl > self._peak:
+                    self._peak = lvl
+            except Exception:
+                pass
 
         try:
+            # blocksize + high latency give PortAudio a larger buffer so a momentary
+            # stall (CPU spike, GC, the paste) doesn't overflow and drop samples.
             self._stream = sd.RawInputStream(
                 samplerate=SAMPLERATE, channels=1, dtype="int16",
                 device=self.device, callback=callback,
+                blocksize=BLOCKSIZE, latency="high",
             )
             self._stream.start()
         except Exception as e:
