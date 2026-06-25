@@ -4,31 +4,37 @@ Returns None whenever UIA is unavailable or the control doesn't expose text — 
 auto-learn feature then simply does nothing. Never raises.
 """
 import logging
+import threading
 
 log = logging.getLogger(__name__)
 
-_iuia = None
+_tls = threading.local()   # COM objects are apartment-bound -> one client per thread
 _lib = None
 _failed = False
 
 
 def _client():
-    global _iuia, _lib, _failed
+    """Return a per-thread IUIAutomation client. Each thread (worker, clipboard-restore)
+    gets its own, since COM interface pointers can't be shared across apartments."""
+    global _lib, _failed
     if _failed:
         return None, None
-    if _iuia is not None:
-        return _iuia, _lib
+    client = getattr(_tls, "client", None)
+    if client is not None:
+        return client, _lib
     try:
         import comtypes
         import comtypes.client
 
         comtypes.CoInitialize()
-        _lib = comtypes.client.GetModule("UIAutomationCore.dll")
-        _iuia = comtypes.client.CreateObject(
+        if _lib is None:
+            _lib = comtypes.client.GetModule("UIAutomationCore.dll")
+        client = comtypes.client.CreateObject(
             _lib.CUIAutomation, interface=_lib.IUIAutomation)
-        return _iuia, _lib
+        _tls.client = client
+        return client, _lib
     except Exception:
-        log.info("UI Automation unavailable; auto-learn dictionary disabled", exc_info=True)
+        log.info("UI Automation unavailable", exc_info=True)
         _failed = True
         return None, None
 

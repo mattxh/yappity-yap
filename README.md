@@ -34,8 +34,12 @@ debugging.)
 | **Esc** while recording | Cancel (note: the Esc also reaches the active app) |
 | Win+Ctrl+←/→ etc. | Cancels recording and works normally (passes through) |
 
-The dictated text is left on your clipboard (so Ctrl+V re-pastes it). Every dictation is
-saved to `history.jsonl` (tray → Open history).
+Your clipboard is preserved: the app pastes the dictation, then restores whatever you had
+on the clipboard — but only *after* it confirms the paste landed (by watching the focused
+field), so it never races and pastes the old clipboard by mistake. In apps that don't
+expose their text it falls back to a safe timeout. Set `preserve_clipboard` to `false` in
+`config.json` to instead leave the dictation on the clipboard. Every dictation is saved to
+`history.jsonl` (tray → Open history).
 
 - Recording auto-stops after 5 minutes (configurable `max_recording_s`).
 - Recordings shorter than 0.3 s are ignored.

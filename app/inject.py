@@ -1,11 +1,15 @@
 """Insert text into the focused app: clipboard + simulated Ctrl+V.
 
-Pasting (not typing) is required for Chinese text (IME-safe). The pasted text is left
-on the clipboard on purpose: restoring the previous clipboard after the paste raced with
-apps that read the clipboard slightly late, so they pasted the OLD clipboard instead of
-the transcript. (capture_selection still restores — it only reads, so it can't race.)
+Pasting (not typing) is required for Chinese text (IME-safe).
+
+Optional clipboard preservation (restore_clipboard): the previous clipboard is put back
+AFTER the paste is observed to have landed in the focused field (so the app has already
+read our text), or after a timeout for apps that don't expose their text. Restoring on a
+fixed timer instead raced with the paste and could paste the OLD clipboard, so we confirm
+first. The wait runs on a daemon thread so it never blocks the pipeline.
 """
 import logging
+import threading
 import time
 
 log = logging.getLogger(__name__)
@@ -28,13 +32,47 @@ def _wait_modifiers_released(timeout_s: float = 1.0):
         time.sleep(0.02)
 
 
-def insert_text(text: str, settle_ms: int = 150):
+def _restore_clipboard_when_pasted(prior, baseline, read_focused, set_clip,
+                                   timeout_ms=2500, poll_ms=60,
+                                   clock=time.monotonic, sleep=time.sleep):
+    """Put `prior` back on the clipboard once the paste is seen to have landed (the
+    focused field changed from `baseline`), or after `timeout_ms` as a fallback. Waiting
+    for the change means the app has already read our text, so the restore can't race."""
+    deadline = clock() + timeout_ms / 1000.0
+    while clock() < deadline:
+        sleep(poll_ms / 1000.0)
+        try:
+            cur = read_focused()
+        except Exception:
+            cur = None
+        if cur is not None and cur != baseline:
+            break   # paste landed -> the app has consumed our clipboard text
+    try:
+        set_clip(prior)
+    except Exception:
+        log.debug("clipboard restore failed", exc_info=True)
+
+
+def insert_text(text: str, settle_ms: int = 150, restore_clipboard: bool = False):
     """Paste text into the focused app via the clipboard + Ctrl+V (IME-safe).
 
-    The text is intentionally left on the clipboard afterwards — see the module note."""
+    With restore_clipboard, the previous clipboard is restored after the paste is
+    confirmed (see _restore_clipboard_when_pasted); otherwise the pasted text is left
+    on the clipboard."""
     import keyboard
     import pyperclip
+    from . import uia
 
+    prior = baseline = None
+    if restore_clipboard:
+        try:
+            prior = pyperclip.paste()
+        except Exception:
+            prior = None
+        try:
+            baseline = uia.read_focused_text()
+        except Exception:
+            baseline = None
     pyperclip.copy(text)
     _wait_modifiers_released()
     time.sleep(settle_ms / 1000.0)
@@ -42,6 +80,12 @@ def insert_text(text: str, settle_ms: int = 150):
         keyboard.send("ctrl+v")
     except Exception:
         log.exception("paste failed (text remains on clipboard)")
+        return
+    if restore_clipboard and prior is not None and prior != text:
+        threading.Thread(
+            target=_restore_clipboard_when_pasted,
+            args=(prior, baseline, uia.read_focused_text, set_clipboard),
+            daemon=True, name="clip-restore").start()
 
 
 _NO_SELECTION = "\x00\x00__voicetotext_no_selection__\x00\x00"

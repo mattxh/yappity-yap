@@ -27,6 +27,7 @@ DEFAULTS = {
     "show_overlay": True,
     "append_space": True,
     "notify_on_insert": False,   # toast char count after each paste
+    "preserve_clipboard": True,  # restore your clipboard after pasting (once paste lands)
     "command_hotkey": "alt+windows",   # voice-edit selected text
     "snippets": {},              # spoken trigger phrase -> expansion text
     "spoken_formatting": True,   # "new line"/"new paragraph" as their own utterance

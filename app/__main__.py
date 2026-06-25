@@ -278,7 +278,7 @@ class App:
         result = postprocess.to_traditional(result)
         if not result.strip():
             return
-        inject.insert_text(result)
+        inject.insert_text(result, restore_clipboard=self.cfg.get("preserve_clipboard", True))
         if self.cfg.get("notify_on_insert"):
             self.notifier.toast(self.t("done_notify", chars=len(result)))
         dur = wav_duration(wav)
@@ -377,7 +377,7 @@ class App:
             # go nowhere. Offer the transcript so the user can copy it instead.
             self._offer_transcript(final)
         else:
-            inject.insert_text(final)
+            inject.insert_text(final, restore_clipboard=self.cfg.get("preserve_clipboard", True))
             if self.cfg.get("notify_on_insert"):
                 self.notifier.toast(self.t("done_notify", chars=len(final)))
             self._set_pending_learn(final)
