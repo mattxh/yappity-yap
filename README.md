@@ -21,28 +21,32 @@ out as Traditional characters (繁體中文).
 variable, or copy `config.example.json` to `config.json` and paste your key into
 `providers.openai.api_key`. ElevenLabs/Groq keys are optional.)*
 
-## Sharing it with a friend (standalone .exe — no Python needed)
+## Sharing it with a friend
 
-To give this to someone non-technical, build a single `.exe` they just double-click:
+### Option A — standalone .exe (no Python needed; best for non-technical)
 
-1. On a Windows PC with the app set up, run **`build_exe.bat`** (it installs PyInstaller
-   and packages everything).
+1. On a Windows PC with the app set up, run **`build_exe.bat`** (installs PyInstaller and
+   packages everything).
 2. Send them the one file it produces: **`dist\VoiceToText.exe`**.
-3. They double-click it. On first run it asks for **their own OpenAI API key**
-   (from platform.openai.com/api-keys) and saves it to `%LOCALAPPDATA%\VoiceToText`.
-   That's it — a mic icon appears in the system tray.
+3. They double-click it. On first run it asks for **their own OpenAI API key** and saves
+   it to `%LOCALAPPDATA%\VoiceToText`. A mic icon appears in the system tray.
 
-Notes:
-- **Each person needs their own API key** — usage is billed to whoever's key it is.
-  Never send them your `config.json`. ElevenLabs is optional (OpenAI alone runs
-  everything); they can add an ElevenLabs key later via `config.json` if they want.
-- Windows SmartScreen may warn that the `.exe` is from an unknown publisher (it's
-  unsigned) — they click **More info → Run anyway**. Some antivirus also flags
-  PyInstaller apps; that's a false positive.
-- The global hotkey may need the app **Run as administrator** to work inside elevated
-  windows.
-- The build needs a PyInstaller-compatible Python (3.12 recommended if 3.14 gives
-  trouble); your friend needs nothing but the `.exe`.
+### Option B — via GitHub (they install Python; easy to keep updated)
+
+1. They install **Python 3.12+** from python.org (tick *Add to PATH*).
+2. On the repo page: green **Code → Download ZIP**, then unzip (or `git clone`).
+3. Double-click **`install.bat`** — it installs dependencies and starts the app.
+4. On first run it asks for **their own OpenAI API key**; the mic icon appears in the tray.
+
+### Notes (both options)
+
+- **Each person needs their own API key** — usage is billed to whoever's key it is. Never
+  send them your `config.json`. ElevenLabs/Groq are optional (OpenAI alone runs everything).
+- For the `.exe`: Windows SmartScreen may warn it's from an unknown publisher (it's
+  unsigned) — **More info → Run anyway**. Some antivirus also false-positives PyInstaller
+  apps. The build needs a PyInstaller-compatible Python (3.12 if 3.14 gives trouble); the
+  friend needs nothing but the `.exe`.
+- The global hotkey may need the app **Run as administrator** to work inside elevated apps.
 
 ## Starting & quitting
 
