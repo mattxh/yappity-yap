@@ -6,13 +6,20 @@ out as Traditional characters (繁體中文).
 
 ## Setup (once)
 
-1. `python -m pip install -r requirements.txt`
-2. Copy `config.example.json` to `config.json` and paste your OpenAI API key into
-   `providers.openai.api_key` (or set the `OPENAI_API_KEY` environment variable).
-3. Test everything: `python -m app --check` → speak for 2 seconds → your words print.
-4. Start the app: double-click `run.bat` (or `python -m app --verbose` to debug).
-   A gray microphone appears in the system tray.
+1. Install **Python 3.12+** from [python.org](https://www.python.org/downloads/) — tick
+   *"Add Python to PATH"* during install.
+2. Download this repo (green **Code → Download ZIP**, then unzip) and open a terminal in
+   the folder.
+3. `python -m pip install -r requirements.txt`
+4. Start it: double-click **`run.bat`** (or run `python -m app`). **On first run it asks
+   for your OpenAI API key and saves it** — get one at
+   [platform.openai.com/api-keys](https://platform.openai.com/api-keys). A microphone
+   appears in the system tray.
 5. Optional: tray menu → **Start with Windows**.
+
+*(Advanced: instead of the first-run prompt you can set the `OPENAI_API_KEY` environment
+variable, or copy `config.example.json` to `config.json` and paste your key into
+`providers.openai.api_key`. ElevenLabs/Groq keys are optional.)*
 
 ## Sharing it with a friend (standalone .exe — no Python needed)
 
