@@ -14,6 +14,29 @@ out as Traditional characters (繁體中文).
    A gray microphone appears in the system tray.
 5. Optional: tray menu → **Start with Windows**.
 
+## Sharing it with a friend (standalone .exe — no Python needed)
+
+To give this to someone non-technical, build a single `.exe` they just double-click:
+
+1. On a Windows PC with the app set up, run **`build_exe.bat`** (it installs PyInstaller
+   and packages everything).
+2. Send them the one file it produces: **`dist\VoiceToText.exe`**.
+3. They double-click it. On first run it asks for **their own OpenAI API key**
+   (from platform.openai.com/api-keys) and saves it to `%LOCALAPPDATA%\VoiceToText`.
+   That's it — a mic icon appears in the system tray.
+
+Notes:
+- **Each person needs their own API key** — usage is billed to whoever's key it is.
+  Never send them your `config.json`. ElevenLabs is optional (OpenAI alone runs
+  everything); they can add an ElevenLabs key later via `config.json` if they want.
+- Windows SmartScreen may warn that the `.exe` is from an unknown publisher (it's
+  unsigned) — they click **More info → Run anyway**. Some antivirus also flags
+  PyInstaller apps; that's a false positive.
+- The global hotkey may need the app **Run as administrator** to work inside elevated
+  windows.
+- The build needs a PyInstaller-compatible Python (3.12 recommended if 3.14 gives
+  trouble); your friend needs nothing but the `.exe`.
+
 ## Starting & quitting
 
 - **Start:** double-click the **VoiceToText** icon on your Desktop (runs in the

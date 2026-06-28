@@ -28,9 +28,10 @@ from .recorder import MicError, Recorder, list_devices
 log = logging.getLogger("app")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-LAST_RECORDING = PROJECT_ROOT / "last_recording.wav"
-CORRECTIONS_PATH = PROJECT_ROOT / "corrections.json"
-LOG_PATH = PROJECT_ROOT / "app.log"
+DATA_DIR = config_mod.data_dir()   # source tree in dev; a per-user folder when frozen
+LAST_RECORDING = DATA_DIR / "last_recording.wav"
+CORRECTIONS_PATH = DATA_DIR / "corrections.json"
+LOG_PATH = DATA_DIR / "app.log"
 SINGLE_INSTANCE_PORT = 50517
 WAV_HEADER_BYTES = 44
 BYTES_PER_SECOND = 32000  # 16 kHz * 2 bytes
@@ -717,6 +718,28 @@ def run_check(cfg) -> int:
     return 0
 
 
+def _ensure_api_key(cfg) -> bool:
+    """First-run setup: if no transcription/cleanup key is configured, ask for an OpenAI
+    key in a friendly dialog and save it. Returns False only if the user declined (so the
+    app should exit). ElevenLabs/Groq keys stay optional — OpenAI alone runs everything."""
+    if get_api_key(cfg, cfg.get("provider", "openai")) or config_mod.get_cleanup_api_key(cfg):
+        return True
+    entered = prompt.ask_words(
+        "Welcome to VoiceToText",
+        "Paste your OpenAI API key to get started — it's saved only on this PC. "
+        "Get one at platform.openai.com/api-keys. (ElevenLabs is optional.)",
+        ok_label="Save", cancel_label="Quit", title="VoiceToText setup")
+    key = entered.split()[0] if entered and entered.split() else ""
+    if not key:
+        ctypes.windll.user32.MessageBoxW(
+            0, "No API key entered. Re-open VoiceToText when you have your OpenAI key.",
+            "VoiceToText", 0x40)
+        return False
+    cfg.setdefault("providers", {}).setdefault("openai", {})["api_key"] = key
+    config_mod.save_config(cfg, config_mod.CONFIG_PATH)
+    return True
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="voicetotext")
     parser.add_argument("--check", action="store_true", help="2s mic + API end-to-end test")
@@ -751,6 +774,9 @@ def main(argv=None) -> int:
         ctypes.windll.user32.MessageBoxW(
             0, tr("already_running", cfg.get("ui_language", "en")), "VoiceToText", 0x40)
         return 0
+
+    if not _ensure_api_key(cfg):
+        return 0   # no key entered at first-run setup; nothing to do
 
     _set_dpi_awareness()  # before any GUI window (overlay thread starts in App)
     app = App(cfg, config_mod.CONFIG_PATH)

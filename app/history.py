@@ -5,9 +5,11 @@ import logging
 import re
 from pathlib import Path
 
+from . import config as _config
+
 log = logging.getLogger(__name__)
 
-HISTORY_PATH = Path(__file__).resolve().parent.parent / "history.jsonl"
+HISTORY_PATH = _config.data_dir() / "history.jsonl"
 
 _LATIN_WORD = re.compile(r"[A-Za-z0-9]+")
 _LATIN_CH = re.compile(r"[A-Za-z]")

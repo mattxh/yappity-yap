@@ -135,6 +135,25 @@ def test_looks_like_term():
     assert not _looks_like_term("")
 
 
+def test_ensure_api_key_no_prompt_when_key_present(monkeypatch):
+    import app.__main__ as m
+    monkeypatch.setattr(m, "get_api_key", lambda cfg, p: "sk-existing")
+    monkeypatch.setattr(m.prompt, "ask_words",
+                        lambda *a, **k: pytest.fail("must not prompt when a key exists"))
+    assert m._ensure_api_key({"provider": "openai"}) is True
+
+
+def test_ensure_api_key_saves_entered_openai_key(monkeypatch):
+    import app.__main__ as m
+    monkeypatch.setattr(m, "get_api_key", lambda cfg, p: "")
+    monkeypatch.setattr(m.config_mod, "get_cleanup_api_key", lambda cfg: "")
+    monkeypatch.setattr(m.prompt, "ask_words", lambda *a, **k: "  sk-newkey \n")
+    monkeypatch.setattr(m.config_mod, "save_config", lambda *a, **k: None)
+    cfg = {"provider": "openai", "providers": {}, "cleanup": {}}
+    assert m._ensure_api_key(cfg) is True
+    assert cfg["providers"]["openai"]["api_key"] == "sk-newkey"
+
+
 def test_run_command_add_to_dictionary_routes_to_learn(monkeypatch):
     # regression: _run_command called _learn_from_selection with a stale extra arg,
     # crashing every 'add to dictionary' as 'transcription failed'.

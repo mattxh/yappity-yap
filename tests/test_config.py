@@ -76,6 +76,11 @@ def test_add_words_skips_blanks():
     assert skipped == []
 
 
+def test_data_dir_is_project_root_in_dev():
+    # not frozen -> runtime files live in the source tree (unchanged dev behavior)
+    assert config.data_dir() == config.PROJECT_ROOT
+
+
 def test_remove_word_from_dictionary_and_auto():
     cfg = {"cleanup": {"dictionary": ["Anthropic", "Adithya"], "auto_learned": ["Adithya"]}}
     assert config.remove_word(cfg, "adithya") is True   # case-insensitive

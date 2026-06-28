@@ -3,12 +3,30 @@ import copy
 import json
 import logging
 import os
+import sys
 from pathlib import Path
 
 log = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = PROJECT_ROOT / "config.json"
+
+
+def data_dir() -> Path:
+    """Folder for runtime files (config, history, logs). The source tree during dev; a
+    per-user folder when frozen into an .exe, because the bundle's own directory is a
+    temporary extraction path that's wiped each run."""
+    if getattr(sys, "frozen", False):
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VoiceToText"
+    else:
+        base = PROJECT_ROOT
+    try:
+        base.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+    return base
+
+
+CONFIG_PATH = data_dir() / "config.json"
 
 DEFAULTS = {
     "provider": "openai",
