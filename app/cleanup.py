@@ -66,15 +66,29 @@ def _tokens(text: str) -> list:
     return _WORD.findall(text.lower()) + _HAN.findall(text)
 
 
+# Spelled-out number/date/time words become digits during cleanup, which lowers word
+# overlap. Excluded from the overlap check below so numeric formatting isn't mistaken
+# for the model answering/replacing the text.
+_NUMBER_WORDS = frozenset((
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen "
+    "fourteen fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty "
+    "sixty seventy eighty ninety hundred thousand million billion "
+    "first second third fourth fifth sixth seventh eighth ninth tenth eleventh twelfth "
+    "thirteenth fourteenth fifteenth sixteenth seventeenth eighteenth nineteenth "
+    "twentieth thirtieth oh clock am pm percent dollar dollars cent cents point and"
+).split())
+
+
 def answered_instead_of_cleaned(before: str, after: str, style: str = "balanced",
                                 min_overlap: float = 0.34, min_words: int = 4) -> bool:
     """True if the cleaned text shares very few words with the transcript — a sign the
     model answered/responded to the dictation (e.g. a question) instead of cleaning it.
     Wording-preserving styles keep most of the words, so low overlap is a red flag;
-    heavy style is allowed to rephrase, so it is exempt."""
+    heavy style is allowed to rephrase, so it is exempt. Number words are ignored because
+    converting them to digits legitimately lowers overlap."""
     if style == "heavy":
         return False
-    src = _tokens(before)
+    src = [w for w in _tokens(before) if w not in _NUMBER_WORDS]
     if len(src) < min_words:
         return False
     out = set(_tokens(after))
@@ -127,6 +141,14 @@ _CONSTRAINTS = (
     "spoken."
 )
 
+_NUMERIC_RULE = (
+    "Format numbers the way people type them: use digits for quantities, dates, times, "
+    "money, percentages, phone numbers and addresses (e.g. 2026 not twenty twenty-six, "
+    "June 18 not June eighteenth, 3 PM not three p.m., $5 not five dollars, 75% not "
+    "seventy-five percent) instead of spelling them out, where it reads naturally — but "
+    "leave idioms alone (one of the best, a thousand thanks)."
+)
+
 _LANG_HINT = {
     "en": "The text is in English.",
     # NB: must NOT command Chinese output — that would translate English input.
@@ -138,7 +160,7 @@ _LANG_HINT = {
 
 def build_messages(text, *, style, dictionary, language, app_hint="", app_style=""):
     rule = STYLE_RULES.get(style, STYLE_RULES["balanced"])
-    parts = [_PREAMBLE, rule, _CONSTRAINTS]
+    parts = [_PREAMBLE, rule, _NUMERIC_RULE, _CONSTRAINTS]
     if dictionary:
         parts.append("Spell these names and terms correctly when they appear: "
                      + ", ".join(dictionary) + ".")

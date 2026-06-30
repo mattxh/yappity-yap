@@ -143,6 +143,20 @@ def test_answered_ignores_short_utterances():
     assert answered_instead_of_cleaned("thanks", "Got it.") is False
 
 
+def test_answered_not_tripped_by_number_to_digit_conversion():
+    # a number-heavy utterance turned into digits must NOT look like an "answer"
+    assert answered_instead_of_cleaned(
+        "five five five one two three four", "5551234") is False
+    assert answered_instead_of_cleaned(
+        "june eighteenth twenty twenty six", "June 18, 2026") is False
+
+
+def test_build_messages_includes_numeric_formatting_rule():
+    msgs = build_messages("x", style="balanced", dictionary=[], language="auto")
+    content = msgs[0]["content"].lower()
+    assert "digits" in content and "june 18" in content
+
+
 def test_build_messages_forbids_answering():
     msgs = build_messages("hi", style="balanced", dictionary=[], language="auto")
     sys = msgs[0]["content"].lower()

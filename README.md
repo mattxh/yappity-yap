@@ -116,9 +116,10 @@ no-voice alternative.
 
 After transcription, the raw text is rewritten by a second AI pass that fixes
 punctuation, removes filler words ("um", "uh"), applies your self-corrections
-("5pm, actually 6" → "6pm"), tidies grammar, and adds light formatting — while keeping
-your wording and your English/中文 mix intact. This is the single biggest quality lever
-and is **on by default**.
+("5pm, actually 6" → "6pm"), tidies grammar, writes numbers and dates as digits
+("twenty twenty-six" → "2026", "june eighteenth" → "June 18", "three pm" → "3 PM"), and
+adds light formatting — while keeping your wording and your English/中文 mix intact. This
+is the single biggest quality lever and is **on by default**.
 
 - Toggle it from the tray (**Clean up text**) or `config.json` → `cleanup.enabled`.
   Off = the raw transcript pastes instantly (faster, no extra cost).
