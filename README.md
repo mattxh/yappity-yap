@@ -108,6 +108,10 @@ no-voice alternative.
 
 - **Auto-detect** (default): speak English or Mandarin per recording.
 - Tray → 辨識語言/Language pins English or 中文 if auto-detect guesses wrong.
+- **English + Mandarin only.** If auto-detect mis-fires to another language (e.g. Korean),
+  the app notices and re-transcribes pinned to English, and the cleanup pass will never
+  introduce a non-English/Chinese script. If you mostly speak one language, pinning it in
+  the tray avoids the mis-detection entirely.
 - All Chinese output is converted to Traditional (OpenCC s2twp), no matter what
   the model returns.
 - Tray → UI language switches the menus/notifications between English and 繁體中文.

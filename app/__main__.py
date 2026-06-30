@@ -357,6 +357,15 @@ class App:
         text = self._transcribe_with_retry(wav, language, None)
         if text is None:
             return  # already notified
+        # Auto-detect sometimes mis-fires to Korean/Japanese/etc. The app is English +
+        # Mandarin only, so re-transcribe pinned to English (pin a language in the tray
+        # to avoid this entirely if you mostly speak one).
+        if language is None and cleanup.contains_unsupported_script(text):
+            log.warning("transcript not English/Chinese (%r); retrying pinned to English",
+                        text[:40])
+            retry = self._transcribe_with_retry(wav, "en", None)
+            if retry and retry.strip():
+                text = retry
         log.info("raw transcript (%d chars): %r", len(text), text[:300])
         snippet = textcmds.snippet_match(text, self.cfg.get("snippets", {}))
         fmt = (textcmds.apply_spoken_formatting(text)
@@ -514,6 +523,10 @@ class App:
             return text
         if cleanup.answered_instead_of_cleaned(text, cleaned, cu.get("style", "balanced")):
             log.warning("cleanup answered instead of cleaning; keeping the raw transcript")
+            return text
+        if cleanup.contains_unsupported_script(cleaned) \
+                and not cleanup.contains_unsupported_script(text):
+            log.warning("cleanup produced a non-English/Chinese script; keeping raw")
             return text
         log.info("cleanup: %d -> %d chars", len(text), len(cleaned))
         return cleaned

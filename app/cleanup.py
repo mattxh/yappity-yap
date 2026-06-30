@@ -62,6 +62,22 @@ def added_content(before: str, after: str, ratio: float = 0.6, floor: int = 5) -
     return (a - b) > max(floor, b * ratio)
 
 
+# Scripts the app does not support (it targets English + Mandarin only). Their presence
+# means the speech model mis-detected the language — most often Korean, sometimes Japanese
+# kana or Cyrillic. CJK punctuation (U+3000–303F) is deliberately NOT here (Chinese uses it).
+_FOREIGN = re.compile(
+    r"[가-힣ᄀ-ᇿ㄰-㆏"   # Korean: Hangul syllables + Jamo
+    r"぀-ヿ"                               # Japanese: Hiragana + Katakana
+    r"Ѐ-ӿ]"                              # Cyrillic
+)
+
+
+def contains_unsupported_script(text: str) -> bool:
+    """True if the text contains a script outside English + Mandarin (Korean, kana,
+    Cyrillic). Used to catch speech-model language mis-detection."""
+    return _FOREIGN.search(text or "") is not None
+
+
 def _tokens(text: str) -> list:
     return _WORD.findall(text.lower()) + _HAN.findall(text)
 

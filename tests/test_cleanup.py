@@ -2,7 +2,8 @@ import pytest
 
 from app import cleanup
 from app.cleanup import (CleanupError, build_messages, clean, preserves_language,
-                         added_content, answered_instead_of_cleaned)
+                         added_content, answered_instead_of_cleaned,
+                         contains_unsupported_script)
 
 
 class FakeResponse:
@@ -155,6 +156,20 @@ def test_build_messages_includes_numeric_formatting_rule():
     msgs = build_messages("x", style="balanced", dictionary=[], language="auto")
     content = msgs[0]["content"].lower()
     assert "digits" in content and "june 18" in content
+
+
+def test_contains_unsupported_script_flags_foreign_languages():
+    assert contains_unsupported_script("안녕하세요") is True        # Korean
+    assert contains_unsupported_script("こんにちは") is True        # Japanese hiragana
+    assert contains_unsupported_script("カタカナ") is True          # Japanese katakana
+    assert contains_unsupported_script("Привет") is True           # Cyrillic
+
+
+def test_contains_unsupported_script_allows_english_and_chinese():
+    assert contains_unsupported_script("Hello, world!") is False
+    assert contains_unsupported_script("今天天氣很好，2026年。") is False   # Mandarin + digits
+    assert contains_unsupported_script("用 VSCode 寫程式") is False         # mixed EN/中文
+    assert contains_unsupported_script("") is False
 
 
 def test_build_messages_forbids_answering():

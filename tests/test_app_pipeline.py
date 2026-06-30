@@ -99,6 +99,13 @@ def test_maybe_cleanup_empty_text_returns_raw(monkeypatch):
     assert called == []
 
 
+def test_maybe_cleanup_reverts_unsupported_script(monkeypatch):
+    # cleanup must never turn English/Chinese into Korean etc.
+    monkeypatch.setattr(cleanup_mod, "clean", lambda *a, **k: "안녕하세요")
+    assert App._maybe_cleanup(_fake_app(), "hello there my friend", "auto") \
+        == "hello there my friend"
+
+
 def _fake_learn_app(tmp_path):
     return types.SimpleNamespace(
         cfg={"cleanup": {"dictionary": [], "auto_learned": []}, "learn": {"min_ratio": 0.6}},
@@ -258,6 +265,17 @@ def test_transcribe_offers_copy_when_focus_not_text_field(monkeypatch, tmp_path)
     App._transcribe_and_insert(_dictation_fake(calls), b"x" * 200)
     assert calls.get("offered") == "hello"
     assert "inserted" not in calls
+
+
+def test_transcribe_retries_in_english_on_unsupported_script(monkeypatch, tmp_path):
+    # auto-detect returned Korean -> re-transcribe pinned to English
+    calls = {}
+    _patch_dictation(monkeypatch, tmp_path, calls, editable=True)
+    fake = _dictation_fake(calls)
+    fake._transcribe_with_retry = lambda wav, language, prompt: (
+        "안녕하세요" if language is None else "hello")
+    App._transcribe_and_insert(fake, b"x" * 200)
+    assert calls.get("inserted") == "hello"
 
 
 def test_transcribe_sends_no_prompt(monkeypatch, tmp_path):
