@@ -142,6 +142,7 @@ def run_tray(app, on_ready=None):
             Menu.SEPARATOR,
             Item(lambda item: t("recent"), recent_menu()),
             Item(lambda item: t("add_words"), lambda: app.add_words()),
+            Item(lambda item: t("import_words"), lambda: app.import_words()),
             Item(lambda item: t("remove_word"), remove_menu()),
             Item(lambda item: t("dashboard"), lambda: app.open_dashboard()),
             Item(lambda item: t("stats"), lambda: app.show_stats()),

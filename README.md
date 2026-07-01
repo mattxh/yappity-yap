@@ -135,9 +135,10 @@ is the single biggest quality lever and is **on by default**.
 
 The easy way: tray → **Add words…**, type one or more words (names, jargon, product
 names) — one per line or separated by commas — and they're added to your dictionary
-**immediately**, no restart. To delete one, tray → **Remove word** lists your dictionary
-(auto-added words are marked `(auto)`) — click one to remove it. Or edit `config.json` →
-`cleanup.dictionary` directly and restart.
+**immediately**, no restart. To bulk-load from a file, tray → **Import words from file…**
+and pick a `.txt` (one word per line, or comma-separated). To delete one, tray → **Remove
+word** lists your dictionary (auto-added words are marked `(auto)`) — click one to remove
+it. Or edit `config.json` → `cleanup.dictionary` directly and restart.
 Dictionary words guide the cleanup pass toward spelling them right. (They are not sent as
 a transcription hint — a non-English vocabulary list there biased the model into
 translating, so spelling is fixed during cleanup instead.)
@@ -211,6 +212,7 @@ key, and `cleanup.model` to e.g. `llama-3.3-70b-versatile`.
 Right-click the tray icon for: **Clean up text** toggle · **Cleanup style** (light/
 balanced/heavy) · **Language** · **Provider** (OpenAI/ElevenLabs/Groq — switches live) ·
 **UI language** · **Recent** (last 8 dictations — click to copy to clipboard) · **Add words…** ·
+**Import words from file…** ·
 **Remove word** (click a word to delete it) · **Dashboard** (dictionary, cost/usage,
 trends) · **Usage stats** · **Retry last recording** · **Open history** (searchable) ·
 **Open config** · **Help** (everything the app does) · **Start with Windows** ·

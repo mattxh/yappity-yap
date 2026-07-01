@@ -161,6 +161,34 @@ def test_ensure_api_key_saves_entered_openai_key(monkeypatch):
     assert cfg["providers"]["openai"]["api_key"] == "sk-newkey"
 
 
+def test_import_words_reads_file_dedups_and_adds(monkeypatch, tmp_path):
+    import app.__main__ as m
+    f = tmp_path / "words.txt"
+    f.write_text("Adithya\ngit diff\n奇鋐\nadithya\n\n", encoding="utf-8")
+    monkeypatch.setattr(m.prompt, "ask_open_file", lambda *a, **k: str(f))
+    monkeypatch.setattr(m.config_mod, "save_config", lambda *a, **k: None)
+    toasts = []
+    fake = types.SimpleNamespace(
+        cfg={"cleanup": {"dictionary": [], "auto_learned": []}},
+        cfg_path=tmp_path / "config.json",
+        notifier=types.SimpleNamespace(toast=lambda msg, **k: toasts.append(msg)),
+        t=lambda key, **k: key,
+    )
+    fake._add_words_and_report = lambda words: m.App._add_words_and_report(fake, words)
+    m.App.import_words(fake)
+    # one per line, spaces kept ("git diff"), case-insensitive dedup ("adithya" dropped)
+    assert fake.cfg["cleanup"]["dictionary"] == ["Adithya", "git diff", "奇鋐"]
+
+
+def test_import_words_cancelled_does_nothing(monkeypatch):
+    import app.__main__ as m
+    monkeypatch.setattr(m.prompt, "ask_open_file", lambda *a, **k: "")
+    fake = types.SimpleNamespace(
+        _add_words_and_report=lambda words: pytest.fail("should not add on cancel"),
+        t=lambda key, **k: key)
+    m.App.import_words(fake)   # no exception, no add
+
+
 def test_run_command_add_to_dictionary_routes_to_learn(monkeypatch):
     # regression: _run_command called _learn_from_selection with a stale extra arg,
     # crashing every 'add to dictionary' as 'transcription failed'.

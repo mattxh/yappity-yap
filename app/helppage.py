@@ -69,6 +69,8 @@ def render_help(hotkey: str, command_hotkey: str) -> str:
     p.append("<h2>Dictionary</h2><ul>")
     p.append("<li>Tray → <b>Add words…</b> to add names/jargon live, one per line or "
              "comma-separated (no restart).</li>")
+    p.append("<li>Tray → <b>Import words from file…</b> to bulk-load a <code>.txt</code> "
+             "(one word per line, or comma-separated).</li>")
     p.append("<li>Tray → <b>Remove word</b> to delete any word (auto-added ones are marked).</li>")
     p.append("<li>With auto-learn on (<code>learn.enabled</code>), a corrected word is "
              "added automatically after you've rewritten it more than twice.</li>")

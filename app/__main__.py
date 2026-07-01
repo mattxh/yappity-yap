@@ -593,14 +593,8 @@ class App:
         self.cfg.setdefault("cleanup", {})["style"] = style
         config_mod.save_config(self.cfg, self.cfg_path)
 
-    def add_words(self):
-        """Tray 'Add words…': prompt for one or more words and add them live."""
-        text = prompt.ask_words(self.t("add_words"), self.t("add_words_hint"),
-                                ok_label=self.t("btn_add"),
-                                cancel_label=self.t("btn_cancel"), title="VoiceToText")
-        words = _parse_words(text)
-        if not words:
-            return
+    def _add_words_and_report(self, words):
+        """Add a parsed list of words to the dictionary and toast a summary."""
         added, skipped = config_mod.add_words(self.cfg, words)
         if added:
             config_mod.save_config(self.cfg, self.cfg_path)
@@ -610,6 +604,28 @@ class App:
             self.notifier.toast(self.t("words_added", n=len(added)))
         else:
             self.notifier.toast(self.t("words_none_new"))
+
+    def add_words(self):
+        """Tray 'Add words…': prompt for one or more words and add them live."""
+        text = prompt.ask_words(self.t("add_words"), self.t("add_words_hint"),
+                                ok_label=self.t("btn_add"),
+                                cancel_label=self.t("btn_cancel"), title="VoiceToText")
+        words = _parse_words(text)
+        if words:
+            self._add_words_and_report(words)
+
+    def import_words(self):
+        """Tray 'Import words from file…': bulk-add from a .txt (one per line or comma-
+        separated)."""
+        path = prompt.ask_open_file(self.t("import_words"), title="VoiceToText")
+        if not path:
+            return
+        try:
+            text = Path(path).read_text(encoding="utf-8", errors="replace")
+        except OSError as e:
+            self.notifier.toast(self.t("import_failed", error=str(e)))
+            return
+        self._add_words_and_report(_parse_words(text))
 
     def remove_word(self, word: str):
         if config_mod.remove_word(self.cfg, word):

@@ -148,6 +148,24 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::Out.Write(
 '''
 
 
+_OPEN_FILE_DIALOG = r'''
+Add-Type -AssemblyName System.Windows.Forms
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$dlg = New-Object System.Windows.Forms.OpenFileDialog
+$dlg.Title = '__TITLE__'
+$dlg.Filter = 'Text files (*.txt)|*.txt|All files (*.*)|*.*'
+$dlg.Multiselect = $false
+if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+    [Console]::Out.Write($dlg.FileName)
+}
+'''
+
+
+def ask_open_file(title: str = "VoiceToText") -> str:
+    """Show a Windows 'open file' picker and return the chosen path ('' if cancelled)."""
+    return _run(_OPEN_FILE_DIALOG.replace("__TITLE__", _q(title)))
+
+
 def ask_words(heading: str, hint: str, ok_label: str = "Add",
               cancel_label: str = "Cancel", title: str = "VoiceToText") -> str:
     """Show a modern multiline dialog and return the raw text the user entered
