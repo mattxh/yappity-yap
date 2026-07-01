@@ -99,11 +99,26 @@ def test_preserves_language_allows_english_with_digits_and_punct():
     assert preserves_language("call me at 5 pm", "Call me at 5 PM.") is True
 
 
-def test_build_messages_auto_has_no_traditional_priming():
-    # the 'Traditional Chinese characters' phrase primed translation of that phrase;
-    # Traditional output is guaranteed by OpenCC downstream, not by the cleanup prompt
-    auto = build_messages("x", style="balanced", dictionary=[], language="auto")
-    assert "Traditional Chinese" not in auto[0]["content"]
+def test_preserves_language_allows_pinyin_to_han_in_mixed():
+    # a mixed sentence whose romanized Chinese is converted to Han must NOT be reverted
+    assert preserves_language("我要用 shu ju 分析這個 quan xian",
+                              "我要用數據分析這個權限") is True
+
+
+def test_build_messages_traditional_rule_is_scoped_to_chinese():
+    # the Traditional rule is present but scoped to "if the transcript contains Chinese",
+    # so it won't prime translation of English dictation (the preserves_language guard
+    # still backstops that). It also forbids pinyin.
+    content = build_messages("x", style="balanced", dictionary=[], language="auto")[0]["content"]
+    assert "traditional chinese" in content.lower()
+    assert "if the transcript contains chinese" in content.lower()
+    assert "pinyin" in content.lower()
+
+
+def test_build_messages_forbids_synonym_swaps():
+    content = build_messages("x", style="balanced", dictionary=[], language="auto")[0]["content"]
+    assert "synonym" in content.lower()
+    assert "數據" in content and "權限" in content
 
 
 def test_added_content_flags_sentence_completion():

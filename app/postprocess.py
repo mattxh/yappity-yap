@@ -3,7 +3,10 @@ import re
 
 from opencc import OpenCC
 
-_cc = OpenCC("s2twp")  # Simplified -> Traditional with Taiwan phrasing
+# s2tw: Simplified -> Traditional (Taiwan standard characters). NOT s2twp — the "p"
+# variant also swaps vocabulary for Taiwan-preferred synonyms (數據->資料, 權限->許可權),
+# which changed the speaker's actual words. s2tw only fixes the characters.
+_cc = OpenCC("s2tw")
 
 # CJK Unified Ideographs (+ExtA, compat) — presence triggers conversion.
 _HAN_RE = re.compile(r"[㐀-䶿一-鿿豈-﫿]")

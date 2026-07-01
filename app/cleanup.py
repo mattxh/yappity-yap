@@ -22,29 +22,16 @@ class CleanupError(Exception):
     pass
 
 
-def _han_ratio(text: str) -> float:
-    han = len(_HAN.findall(text))
-    latin = len(_LATIN.findall(text))
-    base = han + latin
-    return han / base if base else 0.0
-
-
-def preserves_language(before: str, after: str, max_shift: float = 0.5) -> bool:
-    """True unless cleanup translated the text. Two checks:
-
-    1. a large Han/(Han+Latin) ratio swing = a wholesale flip (e.g. all English -> all
-       Chinese);
-    2. a monolingual transcript that gains the other script = a partial translation
-       (e.g. English 'Traditional Chinese' rendered as 繁體中文). Mixed-language
-       transcripts are left alone so genuine code-switching is preserved.
-    """
-    if abs(_han_ratio(after) - _han_ratio(before)) > max_shift:
-        return False
+def preserves_language(before: str, after: str) -> bool:
+    """True unless cleanup translated the text. A monolingual transcript that gains the
+    other script is a translation (English 'Traditional Chinese' -> 繁體中文) or a
+    romanization, so it's rejected. Mixed transcripts are left alone — that lets genuine
+    code-switching AND pinyin->Han fixes (e.g. '我要用 shu ju' -> '我要用數據') survive."""
     before_han, after_han = bool(_HAN.search(before)), bool(_HAN.search(after))
     before_lat, after_lat = bool(_LATIN.search(before)), bool(_LATIN.search(after))
     if not before_han and after_han:   # English-only transcript sprouted Chinese
         return False
-    if not before_lat and after_lat:   # Chinese-only transcript sprouted English
+    if not before_lat and after_lat:   # Chinese-only transcript sprouted Latin/pinyin
         return False
     return True
 
@@ -154,7 +141,10 @@ _CONSTRAINTS = (
     "did not say — not even to finish a sentence or a familiar phrase. If the speech ends "
     "mid-sentence, leave it unfinished. Only remove fillers and fix punctuation, "
     "capitalization, and obvious slips. Preserve mixed English and Chinese exactly as "
-    "spoken."
+    "spoken. Keep the speaker's exact words — never swap a word for a synonym or "
+    "paraphrase it; for example keep 數據 as 數據 and 權限 as 權限, never change them to "
+    "資料 or 使用權. If the transcript contains Chinese, write it in Traditional Chinese "
+    "characters (Taiwan) — never Simplified, and never pinyin/romanization."
 )
 
 _NUMERIC_RULE = (
