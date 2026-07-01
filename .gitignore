@@ -1,5 +1,6 @@
 # Secrets & user data
 config.json
+keywords.txt
 history.jsonl
 history.html
 dashboard.html
