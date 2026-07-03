@@ -267,6 +267,10 @@ available there).
   hooks; run this app as admin.
 - **API errors** — check `app.log`; failed audio is kept as `last_recording.wav`,
   tray → Retry last recording.
+- **"Couldn't reach the transcription service"** — a network/DNS problem reaching your
+  provider (e.g. a firewall or VPN blocking `api.elevenlabs.io`). If your OpenAI key is
+  set, the app automatically falls back to OpenAI for that dictation; to fix it for good,
+  switch tray → **Provider → OpenAI**, or sort out the network.
 - Logs: `app.log` (rotates at 1 MB). Verbose console: `python -m app --verbose`.
 
 ## Privacy & cost

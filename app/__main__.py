@@ -465,19 +465,62 @@ class App:
             config_mod.save_config(self.cfg, self.cfg_path)
             self.notifier.toast(self.t("learned_undone", terms=", ".join(terms)))
 
-    def _transcribe_with_retry(self, wav, language, prompt):
-        for attempt in (1, 2):
+    def _attempt(self, provider, wav, language, prompt, retries):
+        """Try one provider up to retries+1 times. Returns (text, None) on success or
+        (None, error) on failure."""
+        err = None
+        for i in range(retries + 1):
             try:
-                return self.provider.transcribe(wav, language, prompt)
+                return provider.transcribe(wav, language, prompt), None
             except TranscriptionError as e:
-                if e.retryable and attempt == 1:
+                err = e
+                if e.retryable and i < retries:
                     log.warning("transcription failed, retrying: %s", e)
                     time.sleep(2)
                     continue
-                log.error("transcription failed: %s", e)
-                beep("error", self.cfg["beeps"])
-                self.notifier.toast(self.t("err_api", error=str(e)))
-                return None
+                break
+        return None, err
+
+    def _fallback_provider(self):
+        """A working alternative when the chosen provider is unreachable: OpenAI, if it
+        isn't already the provider and its key is set. It reaches most networks and
+        handles English + Mandarin well."""
+        if self.cfg.get("provider") == "openai" or not get_api_key(self.cfg, "openai"):
+            return None
+        try:
+            fb_cfg = dict(self.cfg)
+            fb_cfg["provider"] = "openai"
+            return create_provider(fb_cfg)
+        except Exception:
+            log.debug("could not build fallback provider", exc_info=True)
+            return None
+
+    def _friendly_error(self, err) -> str:
+        s = str(err or "")
+        low = s.lower()
+        if any(k in low for k in ("getaddrinfo", "failed to resolve", "max retries",
+                                  "nameresolution", "connection", "timed out", "timeout")):
+            return self.t("err_offline")
+        return s[:160]
+
+    def _transcribe_with_retry(self, wav, language, prompt):
+        fb = self._fallback_provider()
+        # Don't burn the 2s retry on a dead host when a fallback is ready.
+        text, err = self._attempt(self.provider, wav, language, prompt,
+                                  retries=0 if fb is not None else 1)
+        if text is not None:
+            return text
+        if fb is not None:
+            log.warning("primary provider failed (%s); trying OpenAI fallback", err)
+            ftext, ferr = self._attempt(fb, wav, language, prompt, retries=0)
+            if ftext is not None:
+                self.notifier.toast(self.t("provider_fallback"))
+                return ftext
+            err = ferr or err
+        log.error("transcription failed: %s", err)
+        beep("error", self.cfg["beeps"])
+        self.notifier.toast(self.t("err_api", error=self._friendly_error(err)))
+        return None
 
     def _transcription_model(self) -> str:
         provider = self.cfg.get("provider", "openai")

@@ -142,6 +142,47 @@ def test_looks_like_term():
     assert not _looks_like_term("")
 
 
+def _bind(fake, *names):
+    import app.__main__ as m
+    for name in names:
+        setattr(fake, name, types.MethodType(getattr(m.App, name), fake))
+
+
+def test_transcribe_falls_back_to_openai_when_provider_unreachable(monkeypatch):
+    import app.__main__ as m
+    from app.providers.base import TranscriptionError
+
+    class Boom:
+        def transcribe(self, *a):
+            raise TranscriptionError("getaddrinfo failed", retryable=True)
+
+    class OK:
+        def transcribe(self, *a):
+            return "你好"
+
+    monkeypatch.setattr(m, "create_provider", lambda cfg: OK())
+    monkeypatch.setattr(m, "get_api_key", lambda cfg, p: "sk-openai")
+    monkeypatch.setattr(m, "beep", lambda *a, **k: None)
+    toasts = []
+    fake = types.SimpleNamespace(
+        provider=Boom(),
+        cfg={"provider": "elevenlabs", "beeps": False},
+        notifier=types.SimpleNamespace(toast=lambda msg, **k: toasts.append(msg)),
+        t=lambda key, **k: key)
+    _bind(fake, "_transcribe_with_retry", "_attempt", "_fallback_provider", "_friendly_error")
+    assert fake._transcribe_with_retry(b"x", None, None) == "你好"
+    assert "provider_fallback" in toasts
+
+
+def test_friendly_error_maps_network_errors():
+    import app.__main__ as m
+    fake = types.SimpleNamespace(t=lambda key, **k: key)
+    _bind(fake, "_friendly_error")
+    assert fake._friendly_error(Exception("Failed to resolve host, getaddrinfo failed")) \
+        == "err_offline"
+    assert "boom" in fake._friendly_error(Exception("boom detail"))
+
+
 def test_ensure_api_key_no_prompt_when_key_present(monkeypatch):
     import app.__main__ as m
     monkeypatch.setattr(m, "get_api_key", lambda cfg, p: "sk-existing")
