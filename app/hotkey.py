@@ -99,6 +99,14 @@ class ChordMachine:
             return True
 
         if self.state == DRAIN:
+            # A fresh, complete chord means the user is starting again — recover even if
+            # a key-up was missed (e.g. Win+Ctrl+arrow switched desktops and the OS ate an
+            # up), which would otherwise strand us in DRAIN and swallow the next tap.
+            if chord_complete:
+                self.state = HELD
+                self.t0 = self.clock()
+                self._safe(self.on_start)
+                return True
             if not any(self.down.values()):
                 self.state = IDLE
             return True

@@ -164,6 +164,24 @@ def test_external_stop_noop_when_idle(rig):
     assert m.external_stop() is False
 
 
+def test_drain_recovers_on_fresh_chord_after_missed_keyup(rig):
+    # Reproduces "first tap in a new box fails, second works": a cancel drops us into
+    # DRAIN, then a modifier key-up is missed (e.g. Win+Ctrl+arrow switched desktops),
+    # so DRAIN would normally strand and swallow the next tap. A fresh chord must recover.
+    m, spy, clock = rig
+    m.handle("down", "ctrl")
+    m.handle("down", "win")            # HELD (recording)
+    m.handle("down", "other")          # DRAIN (cancelled)
+    assert spy.calls == ["start", "cancel"]
+    m.handle("up", "other")
+    m.handle("up", "win")              # NOTE: ctrl-up is never seen (missed) -> still DRAIN
+    assert not m.is_idle()
+    clock.advance(1.0)
+    m.handle("down", "ctrl")
+    m.handle("down", "win")            # fresh chord -> should start, not be swallowed
+    assert spy.calls == ["start", "cancel", "start"]
+
+
 def test_reset_recovers_to_idle(rig):
     m, spy, _ = rig
     m.handle("down", "ctrl")

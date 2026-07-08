@@ -127,6 +127,7 @@ class App:
     # -- hotkey callbacks (keyboard hook thread) -----------------------------
 
     def _on_start(self):
+        log.info("recording started")
         try:
             self.recorder.start()
         except MicError as e:
