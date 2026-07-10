@@ -90,7 +90,7 @@ class Notifier:
     def set_sink(self, sink):
         self._sink = sink
 
-    def toast(self, message: str, title: str = "VoiceToText"):
+    def toast(self, message: str, title: str = "Yappity Yapp"):
         log.info("notify: %s", message)
         if self._sink is not None:
             try:

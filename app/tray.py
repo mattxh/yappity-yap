@@ -11,17 +11,36 @@ from .i18n import tr
 
 log = logging.getLogger(__name__)
 
+# The mic takes the state colour (idle grey, recording red, transcribing orange); the
+# duck stays yellow so the icon is always recognisable.
 COLORS = {"idle": "#9e9e9e", "recording": "#e74c3c", "transcribing": "#e67e22"}
+_DUCK = "#ffd23f"
+_DUCK_WING = "#f2b705"
+_BEAK = "#ff8c00"
+_EYE = "#1c1c22"
 
 
 def make_icon_image(state: str) -> Image.Image:
+    """A cute duck quacking into a microphone."""
     img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    color = COLORS.get(state, COLORS["idle"])
-    d.rounded_rectangle([22, 8, 42, 38], radius=10, fill=color)      # mic capsule
-    d.arc([14, 22, 50, 50], start=0, end=180, fill=color, width=4)   # cradle
-    d.line([32, 50, 32, 58], fill=color, width=4)                    # stem
-    d.line([22, 58, 42, 58], fill=color, width=4)                    # base
+    mic = COLORS.get(state, COLORS["idle"])
+
+    # duck body + head
+    d.ellipse([4, 32, 40, 60], fill=_DUCK)          # body
+    d.ellipse([16, 12, 44, 40], fill=_DUCK)         # head
+    d.chord([12, 40, 34, 56], 200, 20, fill=_DUCK_WING)   # wing
+    d.ellipse([32, 20, 38, 26], fill=_EYE)          # eye
+    # open beak (quacking) pointing toward the mic
+    d.polygon([(42, 24), (56, 23), (44, 29)], fill=_BEAK)   # upper bill
+    d.polygon([(42, 31), (54, 32), (44, 29)], fill=_BEAK)   # lower bill
+
+    # microphone the duck is quacking into
+    d.rounded_rectangle([52, 30, 61, 47], radius=4, fill=mic)   # capsule
+    d.line([56, 47, 56, 55], fill=mic, width=3)                 # stand
+    d.line([50, 56, 62, 56], fill=mic, width=3)                 # base
+    if state == "recording":                                    # little sound waves
+        d.arc([44, 22, 52, 38], 300, 60, fill=mic, width=2)
     return img
 
 
@@ -31,7 +50,7 @@ def run_tray(app, on_ready=None):
     def t(key):
         return tr(key, app.cfg.get("ui_language", "en"))
 
-    icon = pystray.Icon("VoiceToText", make_icon_image("idle"), title="VoiceToText")
+    icon = pystray.Icon("Yappity Yapp", make_icon_image("idle"), title="Yappity Yapp")
 
     def set_state(state):
         icon.icon = make_icon_image(state)

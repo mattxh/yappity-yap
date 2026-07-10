@@ -18,8 +18,8 @@ def _row(keys, desc):
 
 def render_help(hotkey: str, command_hotkey: str) -> str:
     p = ["<!doctype html><html><head><meta charset='utf-8'>",
-         "<title>VoiceToText help</title><style>", _CSS, "</style></head><body>",
-         "<h1>VoiceToText — what it does</h1>",
+         "<title>Yappity Yapp help</title><style>", _CSS, "</style></head><body>",
+         "<h1>Yappity Yapp — what it does</h1>",
          f"<div class='keys'><b>Dictation hotkey:</b> hold <kbd>Win+Ctrl</kbd> "
          f"<span class='muted'>(configured: <code>{hotkey}</code>)</span> &nbsp;·&nbsp; "
          f"<b>Command hotkey:</b> hold <kbd>Win+Alt</kbd> "

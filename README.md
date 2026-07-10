@@ -1,4 +1,4 @@
-# VoiceToText 語音輸入
+# Yappity Yapp 語音輸入
 
 Wispr-Flow-style dictation for Windows. Hold or tap **Win+Ctrl**, speak English or
 Mandarin, and the text is typed into whatever app you're using. Chinese always comes
@@ -27,9 +27,9 @@ variable, or copy `config.example.json` to `config.json` and paste your key into
 
 1. On a Windows PC with the app set up, run **`build_exe.bat`** (installs PyInstaller and
    packages everything).
-2. Send them the one file it produces: **`dist\VoiceToText.exe`**.
+2. Send them the one file it produces: **`dist\Yappity Yapp.exe`**.
 3. They double-click it. On first run it asks for **their own OpenAI API key** and saves
-   it to `%LOCALAPPDATA%\VoiceToText`. A mic icon appears in the system tray.
+   it to `%LOCALAPPDATA%\Yappity Yapp`. A mic icon appears in the system tray.
 
 ### Option B — via GitHub (they install Python; easy to keep updated)
 
@@ -50,7 +50,7 @@ variable, or copy `config.example.json` to `config.json` and paste your key into
 
 ## Starting & quitting
 
-- **Start:** double-click the **VoiceToText** icon on your Desktop (runs in the
+- **Start:** double-click the **Yappity Yapp** icon on your Desktop (runs in the
   background, no console window — a mic icon appears in the system tray). Create or
   remove this icon any time from the tray → **Desktop shortcut**.
 - **Quit:** right-click the tray mic → **Quit**.

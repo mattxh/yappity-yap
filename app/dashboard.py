@@ -56,8 +56,8 @@ def render_dashboard(entries, dictionary, auto_learned, corrections, promote_aft
     busiest = max(days, key=lambda d: d["dictations"], default=None)
 
     p = ["<!doctype html><html><head><meta charset='utf-8'>",
-         "<title>VoiceToText dashboard</title><style>", _CSS, "</style></head><body>",
-         "<h1>VoiceToText dashboard</h1>",
+         "<title>Yappity Yapp dashboard</title><style>", _CSS, "</style></head><body>",
+         "<h1>Yappity Yapp dashboard</h1>",
          "<div class='tiles'>",
          _tile("dictations", st["dictations"]),
          _tile("words", st["words"]),

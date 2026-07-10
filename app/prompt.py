@@ -23,7 +23,7 @@ def _run(ps: str) -> str:
         return ""
 
 
-def ask_text(message: str, title: str = "VoiceToText", default: str = "") -> str:
+def ask_text(message: str, title: str = "Yappity Yapp", default: str = "") -> str:
     """Show a one-line input box and return the entered text ('' if cancelled)."""
     ps = (
         "Add-Type -AssemblyName Microsoft.VisualBasic; "
@@ -161,13 +161,13 @@ if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 '''
 
 
-def ask_open_file(title: str = "VoiceToText") -> str:
+def ask_open_file(title: str = "Yappity Yapp") -> str:
     """Show a Windows 'open file' picker and return the chosen path ('' if cancelled)."""
     return _run(_OPEN_FILE_DIALOG.replace("__TITLE__", _q(title)))
 
 
 def ask_words(heading: str, hint: str, ok_label: str = "Add",
-              cancel_label: str = "Cancel", title: str = "VoiceToText") -> str:
+              cancel_label: str = "Cancel", title: str = "Yappity Yapp") -> str:
     """Show a modern multiline dialog and return the raw text the user entered
     ('' if cancelled). Caller splits it into individual words."""
     ps = (_WORDS_DIALOG

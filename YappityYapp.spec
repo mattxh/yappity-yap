@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Build a single-file Windows .exe:  python -m PyInstaller --noconfirm VoiceToText.spec
+# Build a single-file Windows .exe:  python -m PyInstaller --noconfirm YappityYapp.spec
+import os
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 datas = []
@@ -31,7 +32,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="VoiceToText",
+    name="Yappity Yapp",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -39,5 +40,5 @@ exe = EXE(
     runtime_tmpdir=None,
     console=False,          # tray app — no console window
     disable_windowed_traceback=False,
-    icon=None,
+    icon="icon.ico" if os.path.exists("icon.ico") else None,   # duck icon (built by build_exe.bat)
 )

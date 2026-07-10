@@ -2,7 +2,7 @@
 
 STRINGS = {
     "en": {
-        "app_name": "VoiceToText",
+        "app_name": "Yappity Yapp",
         "recording": "● Recording — Esc to cancel",
         "transcribing": "✍ Transcribing…",
         "command": "● Command — speak your instruction",
@@ -43,7 +43,7 @@ STRINGS = {
         "open_config": "Open config",
         "start_with_windows": "Start with Windows",
         "desktop_shortcut": "Desktop shortcut",
-        "already_running": "VoiceToText is already running.",
+        "already_running": "Yappity Yapp is already running.",
         "err_no_key": "No API key set. Open config and add your key, then restart.",
         "err_mic": "Microphone error: {error}",
         "err_api": "Transcription failed: {error}\nAudio saved — use 'Retry last recording'.",
@@ -65,7 +65,7 @@ STRINGS = {
         "startup_off": "Removed from Windows startup.",
     },
     "zh-TW": {
-        "app_name": "VoiceToText 語音輸入",
+        "app_name": "Yappity Yapp 語音輸入",
         "recording": "● 錄音中 — 按 Esc 取消",
         "transcribing": "✍ 轉錄中…",
         "command": "● 指令 — 請說出您的指令",
@@ -106,7 +106,7 @@ STRINGS = {
         "open_config": "開啟設定檔",
         "start_with_windows": "開機時自動啟動",
         "desktop_shortcut": "桌面捷徑",
-        "already_running": "VoiceToText 已在執行中。",
+        "already_running": "Yappity Yapp 已在執行中。",
         "err_no_key": "尚未設定 API 金鑰。請開啟設定檔填入金鑰後重新啟動。",
         "err_mic": "麥克風錯誤：{error}",
         "err_api": "轉錄失敗：{error}\n音檔已保留 — 可用「重試上次錄音」。",

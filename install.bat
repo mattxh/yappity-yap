@@ -14,7 +14,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo Starting VoiceToText... it will ask for your OpenAI API key on first run.
+echo Starting Yappity Yapp... it will ask for your OpenAI API key on first run.
 start "" pythonw -m app
 echo Done. Look for the microphone icon in your system tray. You can close this window.
 pause

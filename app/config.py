@@ -16,7 +16,7 @@ def data_dir() -> Path:
     per-user folder when frozen into an .exe, because the bundle's own directory is a
     temporary extraction path that's wiped each run."""
     if getattr(sys, "frozen", False):
-        base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "VoiceToText"
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "Yappity Yapp"
     else:
         base = PROJECT_ROOT
     try:

@@ -1,4 +1,4 @@
-"""VoiceToText entry point: wiring, pipeline worker, CLI flags."""
+"""Yappity Yapp entry point: wiring, pipeline worker, CLI flags."""
 import argparse
 import ctypes
 import logging
@@ -653,7 +653,7 @@ class App:
         """Tray 'Add words…': prompt for one or more words and add them live."""
         text = prompt.ask_words(self.t("add_words"), self.t("add_words_hint"),
                                 ok_label=self.t("btn_add"),
-                                cancel_label=self.t("btn_cancel"), title="VoiceToText")
+                                cancel_label=self.t("btn_cancel"), title="Yappity Yapp")
         words = _parse_words(text)
         if words:
             self._add_words_and_report(words)
@@ -661,7 +661,7 @@ class App:
     def import_words(self):
         """Tray 'Import words from file…': bulk-add from a .txt (one per line or comma-
         separated)."""
-        path = prompt.ask_open_file(self.t("import_words"), title="VoiceToText")
+        path = prompt.ask_open_file(self.t("import_words"), title="Yappity Yapp")
         if not path:
             return
         try:
@@ -798,15 +798,15 @@ def _ensure_api_key(cfg) -> bool:
     if get_api_key(cfg, cfg.get("provider", "openai")) or config_mod.get_cleanup_api_key(cfg):
         return True
     entered = prompt.ask_words(
-        "Welcome to VoiceToText",
+        "Welcome to Yappity Yapp",
         "Paste your OpenAI API key to get started — it's saved only on this PC. "
         "Get one at platform.openai.com/api-keys. (ElevenLabs is optional.)",
-        ok_label="Save", cancel_label="Quit", title="VoiceToText setup")
+        ok_label="Save", cancel_label="Quit", title="Yappity Yapp setup")
     key = entered.split()[0] if entered and entered.split() else ""
     if not key:
         ctypes.windll.user32.MessageBoxW(
-            0, "No API key entered. Re-open VoiceToText when you have your OpenAI key.",
-            "VoiceToText", 0x40)
+            0, "No API key entered. Re-open Yappity Yapp when you have your OpenAI key.",
+            "Yappity Yapp", 0x40)
         return False
     cfg.setdefault("providers", {}).setdefault("openai", {})["api_key"] = key
     config_mod.save_config(cfg, config_mod.CONFIG_PATH)
@@ -845,7 +845,7 @@ def main(argv=None) -> int:
     lock = acquire_single_instance()
     if lock is None:
         ctypes.windll.user32.MessageBoxW(
-            0, tr("already_running", cfg.get("ui_language", "en")), "VoiceToText", 0x40)
+            0, tr("already_running", cfg.get("ui_language", "en")), "Yappity Yapp", 0x40)
         return 0
 
     if not _ensure_api_key(cfg):

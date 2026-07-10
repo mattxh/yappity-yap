@@ -129,7 +129,7 @@ def render_html(entries: list) -> str:
 
 
 _HTML_TEMPLATE = """<!doctype html>
-<html><head><meta charset="utf-8"><title>VoiceToText history</title>
+<html><head><meta charset="utf-8"><title>Yappity Yapp history</title>
 <style>
  body{{font-family:Segoe UI,system-ui,sans-serif;max-width:820px;margin:24px auto;padding:0 16px;color:#1c1c20}}
  h1{{font-size:20px;font-weight:600}}
@@ -140,7 +140,7 @@ _HTML_TEMPLATE = """<!doctype html>
  .txt{{margin-top:6px;white-space:pre-wrap}}
  button{{font-size:12px;border:1px solid #ccc;background:#fff;border-radius:7px;padding:3px 9px;cursor:pointer}}
 </style></head><body>
-<h1>VoiceToText history</h1>
+<h1>Yappity Yapp history</h1>
 <div class="stat">{dictations} dictations · {words} words · ~{saved} min saved</div>
 <input id="q" placeholder="Search…" oninput="render()">
 <div id="list"></div>

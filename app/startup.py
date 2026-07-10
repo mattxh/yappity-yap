@@ -8,7 +8,7 @@ from pathlib import Path
 APP_DIR = Path(__file__).resolve().parent.parent
 STARTUP_DIR = (Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows"
                / "Start Menu" / "Programs" / "Startup")
-SHORTCUT = STARTUP_DIR / "VoiceToText.lnk"
+SHORTCUT = STARTUP_DIR / "Yappity Yapp.lnk"
 
 _desktop = None
 
@@ -29,13 +29,13 @@ def _ps_quote(value) -> str:
 
 
 def make_icon_file() -> Path:
-    """Render the tray mic to an .ico the shortcuts can use. Cached on disk."""
+    """Render the duck icon to an .ico the shortcuts (and the .exe build) can use.
+    Always re-rendered so a changed drawing takes effect."""
     from .tray import make_icon_image
 
     icon = APP_DIR / "icon.ico"
-    if not icon.exists():
-        make_icon_image("idle").save(
-            icon, format="ICO", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
+    make_icon_image("idle").save(
+        icon, format="ICO", sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (256, 256)])
     return icon
 
 
@@ -84,7 +84,7 @@ def desktop_dir() -> Path:
 
 
 def desktop_shortcut_path() -> Path:
-    return desktop_dir() / "VoiceToText.lnk"
+    return desktop_dir() / "Yappity Yapp.lnk"
 
 
 def desktop_shortcut_installed() -> bool:
