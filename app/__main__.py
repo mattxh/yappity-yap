@@ -35,7 +35,7 @@ LOG_PATH = DATA_DIR / "app.log"
 SINGLE_INSTANCE_PORT = 50517
 WAV_HEADER_BYTES = 44
 BYTES_PER_SECOND = 32000  # 16 kHz * 2 bytes
-WATCHDOG_INTERVAL_S = 5
+WATCHDOG_INTERVAL_S = 1   # check often so a stranded chord clears before the next tap
 
 
 def wav_duration(wav: bytes) -> float:
@@ -144,6 +144,7 @@ class App:
         self._stop_and_enqueue()
 
     def _on_cancel(self):
+        log.info("recording cancelled")
         self._gate.cancel_timer()
         self.recorder.cancel()
         beep("cancel", self.cfg["beeps"])
@@ -728,11 +729,23 @@ class App:
         self.overlay.hide()
         self.set_tray_state("idle")
 
+    def _mods_physically_up(self) -> bool:
+        """True if Ctrl, Alt and both Win keys are physically released right now. Used to
+        tell a genuinely-stranded chord (missed key-up) from one mid-press."""
+        try:
+            gk = ctypes.windll.user32.GetAsyncKeyState
+            for vk in (0x11, 0x12, 0x5B, 0x5C):   # Ctrl, Alt, LWin, RWin
+                if gk(vk) & 0x8000:
+                    return False
+            return True
+        except Exception:
+            return False
+
     def _watchdog(self):
-        """Recover a hotkey if the global hook ever drops a key event and leaves
-        a chord machine wedged (non-idle while nothing is recording and no job is
-        in flight). Requires the wedge to persist two checks (~10s) so a brief
-        transient is never reset. Covers both the dictation and command chords."""
+        """Recover a chord machine that got stranded in a non-idle state when the global
+        hook dropped a key event (common when Win+Ctrl collides with a Windows shortcut).
+        A stranded machine swallows the next tap, so clear it fast: immediately if the
+        modifier keys are physically up, else after it persists two checks."""
         stuck = {}
         while not self._stopping:
             time.sleep(WATCHDOG_INTERVAL_S)
@@ -740,14 +753,15 @@ class App:
                 idle = (not self.recorder.is_active()
                         and not self._gate.is_active()
                         and not self._cmd_recording)
+                keys_up = self._mods_physically_up()
                 for name, m in (("dictation", self.machine),
                                 ("command", self.cmd_machine)):
                     if m is None:
                         continue
                     wedged = idle and not m.is_idle()
-                    if wedged and m.state == stuck.get(name):
-                        log.warning("hotkey watchdog: recovering stuck %s state %r",
-                                    name, m.state)
+                    if wedged and (keys_up or m.state == stuck.get(name)):
+                        log.warning("hotkey watchdog: recovering stuck %s state %r "
+                                    "(keys_up=%s)", name, m.state, keys_up)
                         m.reset()
                         self._finish_ui()
                         stuck[name] = None
