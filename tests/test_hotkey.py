@@ -314,3 +314,44 @@ def test_adapter_dispatch_drives_hold_for_alt_win(monkeypatch):
     clock.advance(0.6)
     adapter._dispatch("up", "left windows")     # release after a hold -> stop
     assert spy.calls == ["start", "stop"]
+
+
+def test_dummy_injected_while_win_held_not_on_release():
+    # Start-menu suppression must fire while Win is still down (a listen-only hook
+    # can't suppress the release, so injecting on-release is too late).
+    clock = FakeClock()
+    spy = Spy()
+    m = ChordMachine(on_start=spy.start, on_stop=spy.stop, on_cancel=spy.cancel,
+                     mods=("ctrl", "win"), tap_threshold_ms=400, clock=clock)
+    adapter = KeyboardHookAdapter(m)
+    sent = []
+    adapter._send_dummy_vk = lambda: sent.append(m.state)   # capture when it fires
+
+    adapter._dispatch("down", "left ctrl")
+    assert sent == []                       # not until Win joins the chord
+    adapter._dispatch("down", "left windows")
+    assert sent and m.is_recording()        # injected during the hold, once
+    adapter._dispatch("down", "left windows")   # key auto-repeat must not re-inject
+    assert len(sent) == 1
+
+
+def test_echoed_dummy_key_does_not_cancel_recording():
+    # The injected VK 0xE8 comes back through our own hook as an 'other' key; the
+    # adapter must swallow it so the machine doesn't treat it as a cancel.
+    clock = FakeClock()
+    spy = Spy()
+    m = ChordMachine(on_start=spy.start, on_stop=spy.stop, on_cancel=spy.cancel,
+                     mods=("ctrl", "win"), tap_threshold_ms=400, clock=clock)
+    adapter = KeyboardHookAdapter(m)
+    adapter._send_dummy_vk = lambda: setattr(adapter, "_skip", adapter._skip + 2)
+
+    adapter._dispatch("down", "left ctrl")
+    adapter._dispatch("down", "left windows")   # starts recording + arms _skip
+    assert spy.calls == ["start"]
+    adapter._dispatch("down", "e8")             # dummy echo (down) -> swallowed
+    adapter._dispatch("up", "e8")               # dummy echo (up)   -> swallowed
+    assert spy.calls == ["start"]               # NOT cancelled
+
+    # a genuine 'other' key after the echo still cancels as before
+    adapter._dispatch("down", "x")
+    assert spy.calls == ["start", "cancel"]

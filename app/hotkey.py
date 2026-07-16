@@ -167,12 +167,16 @@ class ChordMachine:
 
 class KeyboardHookAdapter:
     """Bridges the `keyboard` library to ChordMachine. Listen-only hook
-    (no global suppression — safer). Injects a dummy VK on Win-up inside a
-    chord so Windows never opens the Start menu."""
+    (no global suppression — safer). While Win is held as part of a chord it
+    injects a throwaway key so Windows never treats the release as a lone Win
+    press and opens the Start menu, and it swallows that injected key so the
+    chord machine never mistakes it for a real one."""
 
     def __init__(self, machine: ChordMachine):
         self.machine = machine
         self._hook = None
+        self._skip = 0            # our injected dummy key echoing back through the hook
+        self._dummy_sent = False  # dummy already injected for the current Win hold
 
     def normalize(self, name: str) -> str:
         """Map a raw key name to this chord's vocabulary. Modifiers outside this
@@ -203,11 +207,20 @@ class KeyboardHookAdapter:
         """Feed one raw key event to the machine (split out from start() so the
         full adapter->machine wiring is unit-testable without the global hook)."""
         key = self.normalize(name)
-        in_chord = self.machine.handle(etype, key)
-        # Also fire when the other modifier is still physically down (user held the
-        # chord through the whole pipeline; the machine may already be idle).
-        if key == MENU_KEY and etype == "up" \
-                and (in_chord or self.machine.menu_guard_active()):
+        if self._skip and key == "other":
+            self._skip -= 1          # this is our own injected dummy echoing back
+            return
+        self.machine.handle(etype, key)
+        if MENU_KEY not in self.machine.mods:
+            return
+        if key == MENU_KEY and etype == "up":
+            self._dummy_sent = False
+        elif etype == "down" and self.machine.down.get(MENU_KEY) \
+                and self.machine.menu_guard_active() and not self._dummy_sent:
+            # Win is held together with the chord's other modifier. Inject the dummy
+            # NOW, while Win is down, so its eventual release isn't seen as a lone Win
+            # (a listen-only hook can't suppress the release, so on-release is too late).
+            self._dummy_sent = True
             self._send_dummy_vk()
 
     def stop(self):
@@ -217,11 +230,12 @@ class KeyboardHookAdapter:
             keyboard.unhook(self._hook)
             self._hook = None
 
-    @staticmethod
-    def _send_dummy_vk():
-        """Send unassigned VK 0xE8 so the OS sees 'another key' before Win-up
-        and does not open the Start menu (classic AutoHotkey trick)."""
+    def _send_dummy_vk(self):
+        """Send unassigned VK 0xE8 so the OS sees 'another key' during the Win hold
+        and does not open the Start menu (classic AutoHotkey trick). The two events
+        echo back through our own hook, so pre-arm _skip to swallow them."""
         import ctypes
 
+        self._skip += 2
         ctypes.windll.user32.keybd_event(0xE8, 0, 0, 0)
         ctypes.windll.user32.keybd_event(0xE8, 0, 2, 0)  # KEYEVENTF_KEYUP
