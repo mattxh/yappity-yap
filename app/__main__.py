@@ -315,9 +315,9 @@ class App:
             self._finish_ui()
             self.machine.pipeline_done()
             return
+        self.jobs.put(("transcribe", wav))   # queue first: never lose a dictation to a UI error
         self.overlay.show(self.t("transcribing"), "transcribing")
         self.set_tray_state("transcribing")
-        self.jobs.put(("transcribe", wav))
 
     # -- pipeline worker thread ----------------------------------------------
 
@@ -846,6 +846,19 @@ def main(argv=None) -> int:
     # Keep third-party debug spam out of app.log (README points users here).
     for noisy in ("PIL", "comtypes"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+
+    # This is a windowed (pythonw) app with no console, so an uncaught exception on
+    # any thread would vanish silently and look like a random crash. Route them to
+    # app.log instead so the next crash is diagnosable.
+    def _log_uncaught(exc_type, exc, tb):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc, tb)
+            return
+        log.critical("uncaught exception", exc_info=(exc_type, exc, tb))
+
+    sys.excepthook = _log_uncaught
+    threading.excepthook = lambda a: _log_uncaught(
+        a.exc_type, a.exc_value, a.exc_traceback)
 
     if args.list_devices:
         print(list_devices())

@@ -1,5 +1,6 @@
 """System tray icon and menu (pystray). Runs on the main thread."""
 import logging
+import threading
 
 import pystray
 from PIL import Image, ImageDraw
@@ -10,6 +11,22 @@ from . import startup
 from .i18n import tr
 
 log = logging.getLogger(__name__)
+
+_icon_lock = threading.Lock()
+
+
+def apply_icon(icon, image) -> None:
+    """Set the tray icon image safely. pystray's Win32 backend recreates the native
+    icon handle on every assignment and is NOT thread-safe. The hotkey, worker and
+    watchdog threads all change the state, and two racing updates raised
+    ``OSError: [WinError 1402] invalid icon handle`` — which, happening mid-``_stop``,
+    silently dropped the in-flight dictation. Serialize the updates with a lock and
+    never let a backend hiccup escape: the icon is purely cosmetic."""
+    with _icon_lock:
+        try:
+            icon.icon = image
+        except Exception:
+            log.warning("tray icon update failed (ignored)", exc_info=True)
 
 # The mic takes the state colour (idle grey, recording red, transcribing orange); the
 # duck stays yellow so the icon is always recognisable.
@@ -51,9 +68,13 @@ def run_tray(app, on_ready=None):
         return tr(key, app.cfg.get("ui_language", "en"))
 
     icon = pystray.Icon("Yappity Yapp", make_icon_image("idle"), title="Yappity Yapp")
+    state_images = {}
 
     def set_state(state):
-        icon.icon = make_icon_image(state)
+        img = state_images.get(state)
+        if img is None:
+            img = state_images[state] = make_icon_image(state)
+        apply_icon(icon, img)
 
     def lang_item(label_key, value):
         return Item(
