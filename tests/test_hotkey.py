@@ -1,6 +1,6 @@
 import pytest
 
-from app.hotkey import ChordMachine, KeyboardHookAdapter, chord_mods
+from app.hotkey import ChordMachine, KeyboardHookAdapter, chord_mods, single_key
 
 
 class FakeClock:
@@ -313,6 +313,57 @@ def test_adapter_dispatch_drives_hold_for_alt_win(monkeypatch):
     assert spy.calls == ["start"]
     clock.advance(0.6)
     adapter._dispatch("up", "left windows")     # release after a hold -> stop
+    assert spy.calls == ["start", "stop"]
+
+
+@pytest.mark.parametrize("hk,expected", [
+    ("f9", "f9"),
+    ("F10", "f10"),
+    ("space", "space"),
+    ("ctrl+alt+s", None),
+    ("ctrl+windows", None),
+    ("ctrl", None),
+    ("", None),
+])
+def test_single_key_parsing(hk, expected):
+    assert single_key(hk) == expected
+
+
+def _key_machine():
+    clock = FakeClock()
+    spy = Spy()
+    m = ChordMachine(on_start=spy.start, on_stop=spy.stop, on_cancel=spy.cancel,
+                     mods=("f9",), tap_threshold_ms=400, clock=clock)
+    return m, spy, clock
+
+
+def test_single_key_hold_to_talk():
+    m, spy, clock = _key_machine()
+    m.handle("down", "f9")            # press -> start
+    assert spy.calls == ["start"] and m.is_recording()
+    clock.advance(0.6)                # held past the tap threshold
+    m.handle("up", "f9")              # release -> stop (push-to-talk)
+    assert spy.calls == ["start", "stop"]
+
+
+def test_single_key_tap_to_toggle():
+    m, spy, clock = _key_machine()
+    m.handle("down", "f9")
+    clock.advance(0.1)
+    m.handle("up", "f9")              # quick tap -> keep recording hands-free
+    assert spy.calls == ["start"] and m.is_recording()
+    m.handle("down", "f9")           # tap again -> stop
+    assert spy.calls == ["start", "stop"]
+
+
+def test_single_key_autorepeat_during_hold_is_noop():
+    m, spy, clock = _key_machine()
+    m.handle("down", "f9")
+    m.handle("down", "f9")           # Windows key auto-repeat while held
+    m.handle("down", "f9")
+    assert spy.calls == ["start"]
+    clock.advance(0.6)
+    m.handle("up", "f9")
     assert spy.calls == ["start", "stop"]
 
 

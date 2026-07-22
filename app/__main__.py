@@ -16,7 +16,7 @@ from . import appcontext, config as config_mod
 from . import (cleanup, command, costs, dashboard, helppage, history, inject, learn,
                postprocess, prompt, textcmds, uia)
 from .config import get_api_key
-from .hotkey import ChordMachine, KeyboardHookAdapter, chord_mods
+from .hotkey import ChordMachine, KeyboardHookAdapter, chord_mods, single_key
 from .i18n import tr
 from .notify import Notifier, beep
 from .overlay import NullOverlay, Overlay
@@ -103,9 +103,12 @@ class App:
         self.overlay = (Overlay(True, level_source=self.recorder.level)
                         if cfg.get("show_overlay", True) else NullOverlay())
         self.notifier = Notifier()
+        hk = cfg.get("hotkey", "f9")
+        sk = single_key(hk)
+        dict_mods = (sk,) if sk else ("ctrl", "win")   # single key -> tap or hold on that key
         self.machine = ChordMachine(
             on_start=self._on_start, on_stop=self._on_stop, on_cancel=self._on_cancel,
-            tap_threshold_ms=cfg.get("tap_threshold_ms", 400),
+            mods=dict_mods, tap_threshold_ms=cfg.get("tap_threshold_ms", 400),
         )
         self.adapter = KeyboardHookAdapter(self.machine)
         self.cmd_machine = None    # command-mode chord (built if the hotkey is a chord)
@@ -178,6 +181,28 @@ class App:
         )
         self.cmd_adapter = KeyboardHookAdapter(self.cmd_machine)
         self.cmd_adapter.start()
+
+    def _bind_key_edges(self, key, machine, suppress):
+        """Feed a single key's real press/release edges into a ChordMachine whose
+        mods=(key,), giving tap-to-toggle AND press-and-hold on a plain key. Auto-repeat
+        key-downs during a hold are harmless — the machine only acts on the release."""
+        import keyboard
+
+        keyboard.on_press_key(key, lambda e: machine.handle("down", key), suppress=suppress)
+        keyboard.on_release_key(key, lambda e: machine.handle("up", key), suppress=suppress)
+
+    def bind_dictation_key(self, key):
+        """Dictation on a single key: tap to start/stop, or hold to push-to-talk."""
+        self._bind_key_edges(key, self.machine, suppress=False)
+
+    def start_command_key(self, key, suppress=True):
+        """Command mode on a single key, with the same tap-or-hold behavior."""
+        self.cmd_machine = ChordMachine(
+            on_start=self._on_cmd_start, on_stop=self._cmd_chord_stop,
+            on_cancel=self._cmd_chord_cancel, mods=(key,),
+            tap_threshold_ms=self.cfg.get("tap_threshold_ms", 400),
+        )
+        self._bind_key_edges(key, self.cmd_machine, suppress=suppress)
 
     def command_toggle(self):
         """Custom (non-chord) hotkey: tap to start (capture selection + record
@@ -884,11 +909,14 @@ def main(argv=None) -> int:
     hotkey_cfg = cfg.get("hotkey", "f9")
     if hotkey_cfg == "ctrl+windows":
         app.adapter.start()
+    elif single_key(hotkey_cfg):
+        app.bind_dictation_key(hotkey_cfg)     # single key: tap to toggle, or hold to talk
+        log.info("dictation hotkey %r (tap or hold)", hotkey_cfg)
     else:
         import keyboard
 
-        keyboard.add_hotkey(hotkey_cfg, app.toggle_simple)
-        log.info("custom hotkey %r (toggle mode)", hotkey_cfg)
+        keyboard.add_hotkey(hotkey_cfg, app.toggle_simple)   # combo: tap-toggle only
+        log.info("dictation hotkey %r (toggle mode)", hotkey_cfg)
 
     cmd_hotkey = cfg.get("command_hotkey", "f10")
     if cmd_hotkey:
@@ -897,11 +925,13 @@ def main(argv=None) -> int:
             if cmd_mods:
                 app.start_command_chord(cmd_mods)  # full hold/tap, like dictation
                 log.info("command hotkey %r (chord: hold or tap)", cmd_hotkey)
+            elif single_key(cmd_hotkey):
+                # Suppress so a bare F10 can't open the app menu bar on each toggle.
+                app.start_command_key(cmd_hotkey, suppress=True)
+                log.info("command hotkey %r (tap or hold)", cmd_hotkey)
             else:
                 import keyboard
 
-                # Suppress it so a bare function key (F10 opens the menu bar, F-keys
-                # trigger app actions) can't leak to the focused app on every toggle.
                 keyboard.add_hotkey(cmd_hotkey, app.command_toggle, suppress=True)
                 log.info("command hotkey %r (toggle mode)", cmd_hotkey)
         except Exception:

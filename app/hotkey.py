@@ -38,6 +38,20 @@ def chord_mods(hotkey: str):
     return None
 
 
+def single_key(hotkey: str):
+    """Return the key name if `hotkey` is a single non-modifier key (e.g. 'f9'),
+    else None. Such keys get tap-or-hold: a ChordMachine with mods=(key,) driven by
+    the key's own press/release edges. Windows delivers those reliably (it doesn't
+    steal a bare function key the way it grabs Win chords), so the release is
+    dependable and the machine never strands."""
+    h = (hotkey or "").strip().lower()
+    if not h or "+" in h:
+        return None
+    if h in ("ctrl", "alt", "shift", "win", "windows", "cmd", "esc", "escape"):
+        return None
+    return h
+
+
 class ChordMachine:
     def __init__(self, on_start, on_stop, on_cancel, mods=("ctrl", "win"),
                  tap_threshold_ms=400, clock=time.monotonic):

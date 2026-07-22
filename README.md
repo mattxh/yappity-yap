@@ -1,7 +1,7 @@
 # Yappity Yapp 語音輸入
 
-Wispr-Flow-style dictation for Windows. Tap **F9**, speak English or Mandarin,
-tap again, and the text is typed into whatever app you're using. Chinese always comes
+Wispr-Flow-style dictation for Windows. **Tap F9** (or press and hold), speak English or
+Mandarin, and the text is typed into whatever app you're using. Chinese always comes
 out as Traditional characters (繁體中文).
 
 ## Setup (once)
@@ -63,8 +63,8 @@ debugging.)
 
 | Action | Result |
 |---|---|
-| **Tap F9** | Start recording |
-| **Tap F9** again | Finish — the text appears at your cursor |
+| **Hold F9**, speak, release | Push-to-talk: text appears at your cursor |
+| **Tap F9** (quick press) | Start recording hands-free; tap F9 again to finish |
 
 Your clipboard is preserved: the app pastes the dictation, then restores whatever you had
 on the clipboard — but only *after* it confirms the paste landed (by watching the focused
@@ -78,9 +78,9 @@ expose their text it falls back to a safe timeout. Set `preserve_clipboard` to `
 
 ## Command mode — voice-edit selected text
 
-Select some text, then **tap F10** and speak an instruction ("make this formal",
-"summarize", "turn into bullet points", "translate to English") — tap again and the
-selection is replaced with the result. The overlay shows a purple waveform while it
+Select some text, then **hold F10** (or tap it) and speak an instruction ("make this
+formal", "summarize", "turn into bullet points", "translate to English") — release (or tap
+again) and the selection is replaced with the result. The overlay shows a purple waveform while it
 listens, then "Applying: …" with your instruction while it works. Change or disable the
 key with `command_hotkey` in config.json (set it to `""` to disable).
 
@@ -244,12 +244,13 @@ Mandarin; OpenAI on English — your accent and mic decide the real winner.
 
 ## Custom hotkey
 
-`"hotkey"` in config.json. The default `"f9"` uses simple, reliable toggle mode: tap to
-start, tap to stop. Set it to any key or combo the `keyboard` library understands
-(e.g. `"f8"`, `"ctrl+alt+space"`). `command_hotkey` (default `"f10"`) works the same way
-and is suppressed so F10 can't open the app's menu bar on each toggle. The old
-`"ctrl+windows"` chord adds hold-to-talk and Esc-to-cancel, but it depends on catching the
-Win-key release through a global hook and can stick when Windows steals the shortcut — not
+`"hotkey"` in config.json. The default `"f9"` is a **single key**, which gets both modes:
+tap to toggle recording on/off, or press and hold to push-to-talk. Set it to any single
+key the `keyboard` library understands (e.g. `"f8"`) to keep tap-or-hold; a multi-key
+combo (e.g. `"ctrl+alt+space"`) works too but is tap-toggle only. `command_hotkey`
+(default `"f10"`) behaves the same and is suppressed so F10 can't open the app's menu bar.
+The old `"ctrl+windows"` chord also does hold/tap, but it depends on catching the Win-key
+release through a global hook and can stick when Windows steals the shortcut — not
 recommended.
 
 ## Troubleshooting
