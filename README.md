@@ -1,7 +1,7 @@
 # Yappity Yapp 語音輸入
 
-Wispr-Flow-style dictation for Windows. Hold or tap **Win+Ctrl**, speak English or
-Mandarin, and the text is typed into whatever app you're using. Chinese always comes
+Wispr-Flow-style dictation for Windows. Tap **Ctrl+Alt+S**, speak English or Mandarin,
+tap again, and the text is typed into whatever app you're using. Chinese always comes
 out as Traditional characters (繁體中文).
 
 ## Setup (once)
@@ -63,10 +63,8 @@ debugging.)
 
 | Action | Result |
 |---|---|
-| **Hold Win+Ctrl**, speak, release | Push-to-talk: text appears at your cursor |
-| **Tap Win+Ctrl** (quick press) | Recording stays on; tap again to finish |
-| **Esc** while recording | Cancel (note: the Esc also reaches the active app) |
-| Win+Ctrl+←/→ etc. | Cancels recording and works normally (passes through) |
+| **Tap Ctrl+Alt+S** | Start recording |
+| **Tap Ctrl+Alt+S** again | Finish — the text appears at your cursor |
 
 Your clipboard is preserved: the app pastes the dictation, then restores whatever you had
 on the clipboard — but only *after* it confirms the paste landed (by watching the focused
@@ -80,15 +78,14 @@ expose their text it falls back to a safe timeout. Set `preserve_clipboard` to `
 
 ## Command mode — voice-edit selected text
 
-Select some text, then **hold Win+Alt** and speak an instruction ("make this formal",
-"summarize", "turn into bullet points", "translate to English") — release and the
-selection is replaced with the result. Like dictation, you can also **tap Win+Alt** to
-start hands-free and tap again to finish. The overlay shows a purple waveform while it
+Select some text, then **tap Ctrl+Alt+C** and speak an instruction ("make this formal",
+"summarize", "turn into bullet points", "translate to English") — tap again and the
+selection is replaced with the result. The overlay shows a purple waveform while it
 listens, then "Applying: …" with your instruction while it works. Change or disable the
 key with `command_hotkey` in config.json (set it to `""` to disable).
 
-**Add a word to the dictionary by voice:** select the word (or short term) anywhere, hold
-Win+Alt, and say **"add to dictionary"**. The selected text is added immediately, with an
+**Add a word to the dictionary by voice:** select the word (or short term) anywhere, tap
+Ctrl+Alt+C, and say **"add to dictionary"**. The selected text is added immediately, with an
 Undo notice. You must have some text **selected** when you speak, and it must be a short
 term (a word or phrase, not a whole sentence). The tray → **Add words…** dialog is the
 no-voice alternative.
@@ -247,9 +244,12 @@ Mandarin; OpenAI on English — your accent and mic decide the real winner.
 
 ## Custom hotkey
 
-`"hotkey"` in config.json. The default `"ctrl+windows"` gets the full hold/tap
-behavior. Any other value (e.g. `"f8"`) uses simple toggle mode (Esc cancel not
-available there).
+`"hotkey"` in config.json. The default `"ctrl+alt+s"` uses simple, reliable toggle mode:
+tap to start, tap to stop. Set it to any combo the `keyboard` library understands
+(e.g. `"f9"`, `"ctrl+alt+space"`). The old `"ctrl+windows"` chord adds hold-to-talk and
+Esc-to-cancel, but it depends on catching the Win-key release through a global hook and
+can stick when Windows steals the shortcut — not recommended. `command_hotkey` works the
+same way.
 
 ## Troubleshooting
 
