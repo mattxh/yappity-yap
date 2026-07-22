@@ -75,6 +75,11 @@ class Recorder:
     def start(self):
         import sounddevice as sd
 
+        # Never run two streams at once. A stray double-start (e.g. the hotkey firing
+        # twice) would otherwise open a second PortAudio stream and orphan the first —
+        # its C callback keeps firing into a half-released buffer, which crashes the
+        # process with an access violation. Close any existing stream first.
+        self._close()
         with self._lock:
             self._buf = bytearray()
             self._peak = 0.0

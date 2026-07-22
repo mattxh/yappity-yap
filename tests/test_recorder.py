@@ -1,8 +1,41 @@
 import io
 import struct
+import sys
+import types
 import wave
 
-from app.recorder import raw_to_wav, MIN_DURATION_S, duration_of, compute_level
+from app.recorder import raw_to_wav, MIN_DURATION_S, duration_of, compute_level, Recorder
+
+
+def test_start_closes_previous_stream(monkeypatch):
+    # A double-start must never leave two PortAudio streams open — the orphaned one
+    # crashes the process with an access violation. The second start closes the first.
+    opened = []
+
+    class FakeStream:
+        def __init__(self, **kw):
+            self.stopped = False
+            self.closed = False
+            opened.append(self)
+
+        def start(self):
+            pass
+
+        def stop(self):
+            self.stopped = True
+
+        def close(self):
+            self.closed = True
+
+    fake_sd = types.SimpleNamespace(RawInputStream=lambda **kw: FakeStream(**kw))
+    monkeypatch.setitem(sys.modules, "sounddevice", fake_sd)
+
+    r = Recorder()
+    r.start()
+    r.start()                       # second start must tear down the first
+    assert len(opened) == 2
+    assert opened[0].closed is True     # first stream cleaned up
+    assert r.is_active() is True        # second stream is the live one
 
 
 def test_raw_to_wav_header_and_payload():

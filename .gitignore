@@ -9,6 +9,7 @@ corrections.json
 icon.ico
 last_recording.wav
 app.log*
+crash.log
 
 # Python
 __pycache__/

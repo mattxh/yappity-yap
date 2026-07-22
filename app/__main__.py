@@ -32,6 +32,8 @@ DATA_DIR = config_mod.data_dir()   # source tree in dev; a per-user folder when 
 LAST_RECORDING = DATA_DIR / "last_recording.wav"
 CORRECTIONS_PATH = DATA_DIR / "corrections.json"
 LOG_PATH = DATA_DIR / "app.log"
+CRASH_PATH = DATA_DIR / "crash.log"   # faulthandler dumps native-crash stacks here
+_crash_fp = None   # kept open for the process lifetime so faulthandler can write to it
 SINGLE_INSTANCE_PORT = 50517
 WAV_HEADER_BYTES = 44
 BYTES_PER_SECOND = 32000  # 16 kHz * 2 bytes
@@ -871,6 +873,19 @@ def main(argv=None) -> int:
     # Keep third-party debug spam out of app.log (README points users here).
     for noisy in ("PIL", "comtypes"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+
+    # Catch NATIVE crashes (access violations in PortAudio / UI Automation / tray),
+    # which bypass Python's exception machinery entirely. faulthandler installs a
+    # Windows fatal-exception handler that dumps every thread's Python stack, so the
+    # next hard crash names the code that was running. Keep the file open process-wide.
+    try:
+        import faulthandler
+
+        global _crash_fp
+        _crash_fp = open(CRASH_PATH, "a", buffering=1, encoding="utf-8")
+        faulthandler.enable(file=_crash_fp, all_threads=True)
+    except Exception:
+        log.warning("could not enable faulthandler", exc_info=True)
 
     # This is a windowed (pythonw) app with no console, so an uncaught exception on
     # any thread would vanish silently and look like a random crash. Route them to
