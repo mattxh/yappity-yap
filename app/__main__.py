@@ -937,9 +937,13 @@ def main(argv=None) -> int:
         except Exception:
             log.warning("could not register command hotkey %r", cmd_hotkey, exc_info=True)
 
-    on_ready = None
-    if not get_api_key(cfg, cfg["provider"]):
-        on_ready = lambda: app.notifier.toast(app.t("err_no_key"))
+    hotkey_label = hotkey_cfg.upper() if single_key(hotkey_cfg) else hotkey_cfg
+
+    def on_ready():
+        # Confirm to the user that the app started (it lives only in the tray otherwise).
+        app.notifier.toast(app.t("running", hotkey=hotkey_label))
+        if not get_api_key(cfg, cfg["provider"]):
+            app.notifier.toast(app.t("err_no_key"))
 
     from .tray import run_tray
 
