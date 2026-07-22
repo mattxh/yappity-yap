@@ -6,7 +6,7 @@ from app import config
 def test_defaults_when_file_missing(tmp_path):
     cfg = config.load_config(tmp_path / "nope.json")
     assert cfg["provider"] == "openai"
-    assert cfg["tap_threshold_ms"] == 400
+    assert cfg["tap_threshold_ms"] == 700
     assert cfg["providers"]["openai"]["model"] == "gpt-4o-transcribe"
 
 

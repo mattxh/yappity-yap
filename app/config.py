@@ -36,7 +36,8 @@ DEFAULTS = {
         "elevenlabs": {"api_key": "", "model": "scribe_v1"},
     },
     "hotkey": "f9",   # reliable tap-to-toggle; see "Custom hotkey" in README
-    "tap_threshold_ms": 400,
+    "tap_threshold_ms": 700,   # release under this = tap (toggle); a deliberate keypress
+                               # often lasts 400-600ms, so 400 misread slow taps as holds
     "max_recording_s": 300,
     "language": "auto",       # auto | en | zh
     "ui_language": "en",      # en | zh-TW

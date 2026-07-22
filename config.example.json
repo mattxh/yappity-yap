@@ -6,7 +6,7 @@
     "elevenlabs": { "api_key": "", "model": "scribe_v1" }
   },
   "hotkey": "f9",
-  "tap_threshold_ms": 400,
+  "tap_threshold_ms": 700,
   "max_recording_s": 300,
   "language": "auto",
   "ui_language": "en",
