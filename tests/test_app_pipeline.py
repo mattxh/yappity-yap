@@ -4,6 +4,54 @@ import pytest
 
 from app import cleanup as cleanup_mod
 from app.__main__ import App, _shorten, _parse_words
+from app.hotkey import ChordMachine
+
+
+def _watchdog_app(recorder_active=False, starting=False):
+    """Bare App with just the attributes _watchdog_scan touches."""
+    app = object.__new__(App)
+    app.recorder = types.SimpleNamespace(is_active=lambda: recorder_active)
+    app._gate = types.SimpleNamespace(is_active=lambda: False)
+    app._cmd_recording = False
+    app._starting = starting
+    app.machine = ChordMachine(on_start=lambda: None, on_stop=lambda: None,
+                               on_cancel=lambda: None, mods=("f9",))
+    app.cmd_machine = None
+    app.overlay = types.SimpleNamespace(hide=lambda: None)
+    app.set_tray_state = lambda state: None
+    app._mods_physically_up = lambda: True
+    return app
+
+
+def test_watchdog_needs_two_sightings_before_reset():
+    # One wedged sample can be the instant between hotkey-fire and mic-open; resetting
+    # then desyncs the machine from a live recording (tap #2 restarts instead of stops).
+    app = _watchdog_app()
+    app.machine.handle("down", "f9")          # HELD, recorder not active yet (race window)
+    stuck = {}
+    app._watchdog_scan(stuck)                 # first sighting: observe only
+    assert not app.machine.is_idle()
+    app.recorder.is_active = lambda: True     # mic came up; machine is fine
+    app._watchdog_scan(stuck)
+    assert not app.machine.is_idle()          # never reset a healthy machine
+
+
+def test_watchdog_skips_scan_while_start_in_flight():
+    app = _watchdog_app(starting=True)
+    app.machine.handle("down", "f9")
+    stuck = {}
+    app._watchdog_scan(stuck)
+    app._watchdog_scan(stuck)                 # persists, but _starting vetoes wedged
+    assert not app.machine.is_idle()
+
+
+def test_watchdog_recovers_genuinely_stranded_machine():
+    app = _watchdog_app()
+    app.machine.handle("down", "f9")          # HELD but recorder never came up
+    stuck = {}
+    app._watchdog_scan(stuck)
+    app._watchdog_scan(stuck)                 # same wedge twice -> reset
+    assert app.machine.is_idle()
 
 
 def test_parse_words_splits_on_commas_and_newlines():

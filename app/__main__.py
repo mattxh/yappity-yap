@@ -122,6 +122,7 @@ class App:
         self._just_learned = None    # terms promoted this run -> flagged after the pipeline
         self._gate = JobGate()   # serializes jobs + owns the auto-stop timer
         self._cmd_recording = False
+        self._starting = False   # recorder.start() in flight (watchdog must not reset)
         self._stopping = False
         threading.Thread(target=self._worker, daemon=True, name="pipeline").start()
         threading.Thread(target=self._watchdog, daemon=True, name="watchdog").start()
@@ -133,12 +134,15 @@ class App:
 
     def _on_start(self):
         log.info("recording started")
+        self._starting = True   # watchdog: machine is non-idle by design right now
         try:
             self.recorder.start()
         except MicError as e:
             beep("error", self.cfg["beeps"])
             self.notifier.toast(self.t("err_mic", error=str(e)))
             return
+        finally:
+            self._starting = False
         beep("start", self.cfg["beeps"])
         self.overlay.show(self.t("recording"), "recording")
         self.set_tray_state("recording")
@@ -223,12 +227,15 @@ class App:
         # NB: the selection is captured later, on the worker thread, AFTER the
         # user releases the chord — sending Ctrl+C here would block the hook
         # thread and (in hold-to-talk) fire while Win+Alt are still down.
+        self._starting = True
         try:
             self.recorder.start()
         except MicError as e:
             beep("error", self.cfg["beeps"])
             self.notifier.toast(self.t("err_mic", error=str(e)))
             return
+        finally:
+            self._starting = False
         self._cmd_recording = True
         beep("start", self.cfg["beeps"])
         self.overlay.show(self.t("command"), "command")
@@ -768,32 +775,38 @@ class App:
         except Exception:
             return False
 
+    def _watchdog_scan(self, stuck):
+        """One watchdog pass. Reset a machine only when the SAME wedged state is seen on
+        two consecutive passes — a single sample can race the instant between the hotkey
+        firing and the mic stream opening, and resetting then desyncs the machine from a
+        live recording (the next tap would restart instead of stop). _starting covers
+        that window explicitly; persistence covers anything we didn't think of."""
+        idle = (not self.recorder.is_active()
+                and not self._gate.is_active()
+                and not self._cmd_recording
+                and not self._starting)
+        for name, m in (("dictation", self.machine),
+                        ("command", self.cmd_machine)):
+            if m is None:
+                continue
+            wedged = idle and not m.is_idle()
+            if wedged and m.state == stuck.get(name):
+                log.warning("hotkey watchdog: recovering stuck %s state %r "
+                            "(keys_up=%s)", name, m.state, self._mods_physically_up())
+                m.reset()
+                self._finish_ui()
+                stuck[name] = None
+            else:
+                stuck[name] = m.state if wedged else None
+
     def _watchdog(self):
-        """Recover a chord machine that got stranded in a non-idle state when the global
-        hook dropped a key event (common when Win+Ctrl collides with a Windows shortcut).
-        A stranded machine swallows the next tap, so clear it fast: immediately if the
-        modifier keys are physically up, else after it persists two checks."""
+        """Recover a chord machine stranded in a non-idle state by a dropped key event.
+        A stranded machine swallows the next tap; recovery takes ~2 passes (~2s)."""
         stuck = {}
         while not self._stopping:
             time.sleep(WATCHDOG_INTERVAL_S)
             try:
-                idle = (not self.recorder.is_active()
-                        and not self._gate.is_active()
-                        and not self._cmd_recording)
-                keys_up = self._mods_physically_up()
-                for name, m in (("dictation", self.machine),
-                                ("command", self.cmd_machine)):
-                    if m is None:
-                        continue
-                    wedged = idle and not m.is_idle()
-                    if wedged and (keys_up or m.state == stuck.get(name)):
-                        log.warning("hotkey watchdog: recovering stuck %s state %r "
-                                    "(keys_up=%s)", name, m.state, keys_up)
-                        m.reset()
-                        self._finish_ui()
-                        stuck[name] = None
-                    else:
-                        stuck[name] = m.state if wedged else None
+                self._watchdog_scan(stuck)
             except Exception:
                 log.debug("watchdog error", exc_info=True)
 
