@@ -5,7 +5,7 @@
     "groq":       { "api_key": "", "model": "whisper-large-v3-turbo" },
     "elevenlabs": { "api_key": "", "model": "scribe_v1" }
   },
-  "hotkey": "ctrl+alt+s",
+  "hotkey": "f9",
   "tap_threshold_ms": 400,
   "max_recording_s": 300,
   "language": "auto",
@@ -15,7 +15,7 @@
   "show_overlay": true,
   "append_space": true,
   "notify_on_insert": false,
-  "command_hotkey": "ctrl+alt+c",
+  "command_hotkey": "f10",
   "spoken_formatting": true,
   "snippets": {},
   "silence_threshold": 0.06,

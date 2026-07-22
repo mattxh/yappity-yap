@@ -35,7 +35,7 @@ DEFAULTS = {
         "groq": {"api_key": "", "model": "whisper-large-v3-turbo"},
         "elevenlabs": {"api_key": "", "model": "scribe_v1"},
     },
-    "hotkey": "ctrl+alt+s",   # reliable tap-to-toggle; see "Custom hotkey" in README
+    "hotkey": "f9",   # reliable tap-to-toggle; see "Custom hotkey" in README
     "tap_threshold_ms": 400,
     "max_recording_s": 300,
     "language": "auto",       # auto | en | zh
@@ -46,7 +46,7 @@ DEFAULTS = {
     "append_space": True,
     "notify_on_insert": False,   # toast char count after each paste
     "preserve_clipboard": True,  # restore your clipboard after pasting (once paste lands)
-    "command_hotkey": "ctrl+alt+c",   # voice-edit selected text
+    "command_hotkey": "f10",   # voice-edit selected text (suppressed so F10 won't open the menu bar)
     "snippets": {},              # spoken trigger phrase -> expansion text
     "spoken_formatting": True,   # "new line"/"new paragraph" as their own utterance
     "silence_threshold": 0.06,   # skip the API if the take never got this loud (0 = off)

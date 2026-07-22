@@ -881,7 +881,7 @@ def main(argv=None) -> int:
     _set_dpi_awareness()  # before any GUI window (overlay thread starts in App)
     app = App(cfg, config_mod.CONFIG_PATH)
 
-    hotkey_cfg = cfg.get("hotkey", "ctrl+windows")
+    hotkey_cfg = cfg.get("hotkey", "f9")
     if hotkey_cfg == "ctrl+windows":
         app.adapter.start()
     else:
@@ -890,7 +890,7 @@ def main(argv=None) -> int:
         keyboard.add_hotkey(hotkey_cfg, app.toggle_simple)
         log.info("custom hotkey %r (toggle mode)", hotkey_cfg)
 
-    cmd_hotkey = cfg.get("command_hotkey", "alt+windows")
+    cmd_hotkey = cfg.get("command_hotkey", "f10")
     if cmd_hotkey:
         cmd_mods = chord_mods(cmd_hotkey)
         try:
@@ -900,7 +900,9 @@ def main(argv=None) -> int:
             else:
                 import keyboard
 
-                keyboard.add_hotkey(cmd_hotkey, app.command_toggle)
+                # Suppress it so a bare function key (F10 opens the menu bar, F-keys
+                # trigger app actions) can't leak to the focused app on every toggle.
+                keyboard.add_hotkey(cmd_hotkey, app.command_toggle, suppress=True)
                 log.info("command hotkey %r (toggle mode)", cmd_hotkey)
         except Exception:
             log.warning("could not register command hotkey %r", cmd_hotkey, exc_info=True)
