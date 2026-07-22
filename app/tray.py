@@ -67,10 +67,15 @@ def run_tray(app, on_ready=None):
     def t(key):
         return tr(key, app.cfg.get("ui_language", "en"))
 
+    animated = app.cfg.get("animated_tray_icon", True)
     icon = pystray.Icon("Yappity Yapp", make_icon_image("idle"), title="Yappity Yapp")
     state_images = {}
 
     def set_state(state):
+        # Flat-icon mode: never mutate icon.icon, so the tray icon can't be a source of
+        # cross-thread update races. Recording state still shows in the overlay pill.
+        if not animated:
+            return
         img = state_images.get(state)
         if img is None:
             img = state_images[state] = make_icon_image(state)

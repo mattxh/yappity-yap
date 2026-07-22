@@ -13,6 +13,7 @@
   "input_device": null,
   "beeps": true,
   "show_overlay": true,
+  "animated_tray_icon": true,
   "append_space": true,
   "notify_on_insert": false,
   "command_hotkey": "f10",

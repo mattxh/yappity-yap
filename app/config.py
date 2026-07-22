@@ -43,6 +43,7 @@ DEFAULTS = {
     "input_device": None,
     "beeps": True,
     "show_overlay": True,
+    "animated_tray_icon": True,   # False = flat static tray icon (no colour change while recording)
     "append_space": True,
     "notify_on_insert": False,   # toast char count after each paste
     "preserve_clipboard": True,  # restore your clipboard after pasting (once paste lands)
