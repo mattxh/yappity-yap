@@ -72,8 +72,12 @@ class ChordMachine:
         chord interaction (adapter uses this to suppress the Start menu)."""
         in_chord_before = self.state != IDLE
 
+        was_down = self.down.get(key, False)
         if key in self.down:
             self.down[key] = etype == "down"
+        # A press only counts as fresh if the key was actually up before it — OS
+        # auto-repeat re-sends "down" while a key is held and must never re-trigger.
+        fresh_press = etype == "down" and key in self.down and not was_down
 
         chord_complete = (
             etype == "down" and key in self.mods and all(self.down.values())
@@ -126,6 +130,14 @@ class ChordMachine:
             return True
 
         if self.state == BUSY:
+            # The last take is still transcribing, but a fresh press means the user
+            # wants the next one now — recording may overlap the pipeline (the App
+            # decides whether to accept; the job queue keeps the output in order).
+            if chord_complete and fresh_press:
+                self.state = HELD
+                self.t0 = self.clock()
+                self._safe(self.on_start)
+                return True
             return key in self.mods
 
         return in_chord_before
@@ -146,8 +158,9 @@ class ChordMachine:
 
     def force_start(self) -> bool:
         """Used by custom non-chord hotkeys (toggle mode). Caller invokes the
-        recorder/UI itself, mirroring external_stop's contract."""
-        if self.state == IDLE:
+        recorder/UI itself, mirroring external_stop's contract. Starting from BUSY is
+        allowed — the next take may be recorded while the last one transcribes."""
+        if self.state in (IDLE, BUSY):
             self.state = TOGGLED
             self.t0 = self.clock()
             return True

@@ -133,6 +133,14 @@ class App:
     # -- hotkey callbacks (keyboard hook thread) -----------------------------
 
     def _on_start(self):
+        if self._cmd_recording or self.jobs.qsize() > 0:
+            # Command mode owns the mic, or a finished take is already waiting its
+            # turn — allow at most one take recording on top of one transcribing.
+            log.info("start refused (cmd=%s, queued=%d)",
+                     self._cmd_recording, self.jobs.qsize())
+            beep("error", self.cfg["beeps"])
+            self.machine.reset()
+            return
         log.info("recording started")
         self._starting = True   # watchdog: machine is non-idle by design right now
         try:
@@ -345,10 +353,14 @@ class App:
         self._gate.cancel_timer()
         wav = self.recorder.stop()
         beep("stop", self.cfg["beeps"])
-        if not wav or not self._gate.try_begin():
+        if not wav:
             self._finish_ui()
             self.machine.pipeline_done()
             return
+        # A previous take may still be transcribing — that's fine: the queue plays
+        # them back in spoken order. (try_begin just marks the gate active if it
+        # wasn't; a False return means it already was.)
+        self._gate.try_begin()
         self.jobs.put(("transcribe", wav))   # queue first: never lose a dictation to a UI error
         self.overlay.show(self.t("transcribing"), "transcribing")
         self.set_tray_state("transcribing")
@@ -374,7 +386,8 @@ class App:
                 self.machine.pipeline_done()
                 if self.cmd_machine is not None:
                     self.cmd_machine.pipeline_done()
-                self._gate.end()
+                if self.jobs.qsize() == 0:   # another take may already be queued behind us
+                    self._gate.end()
             if self._just_learned:                       # flag after the overlay clears
                 terms, self._just_learned = self._just_learned, None
                 self._flag_learned(terms)
@@ -760,6 +773,8 @@ class App:
     # -- helpers ----------------------------------------------------------------
 
     def _finish_ui(self):
+        if self.machine.is_recording() or self._cmd_recording:
+            return   # the next take is already being recorded; keep its overlay up
         self.overlay.hide()
         self.set_tray_state("idle")
 
@@ -784,7 +799,8 @@ class App:
         idle = (not self.recorder.is_active()
                 and not self._gate.is_active()
                 and not self._cmd_recording
-                and not self._starting)
+                and not self._starting
+                and self.jobs.empty())
         for name, m in (("dictation", self.machine),
                         ("command", self.cmd_machine)):
             if m is None:

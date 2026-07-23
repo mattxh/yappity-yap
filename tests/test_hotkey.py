@@ -125,7 +125,9 @@ def test_chord_starts_despite_stray_other_key(rig):
     assert spy.calls == ["start"]
 
 
-def test_busy_blocks_new_chord_until_pipeline_done(rig):
+def test_busy_fresh_chord_starts_next_take(rig):
+    # Changed design: a fresh chord while the last take transcribes starts the next
+    # take immediately (the App layer enforces the queue-depth limit).
     m, spy, clock = rig
     m.handle("down", "ctrl")
     m.handle("down", "win")
@@ -134,14 +136,9 @@ def test_busy_blocks_new_chord_until_pipeline_done(rig):
     m.handle("up", "ctrl")
     assert spy.calls == ["start", "stop"]
     m.handle("down", "ctrl")
-    m.handle("down", "win")  # ignored: busy
-    assert spy.calls == ["start", "stop"]
-    m.handle("up", "win")
-    m.handle("up", "ctrl")
-    m.pipeline_done()
-    m.handle("down", "ctrl")
-    m.handle("down", "win")
+    m.handle("down", "win")  # fresh chord while busy -> next take
     assert spy.calls == ["start", "stop", "start"]
+    assert m.is_recording()
 
 
 def test_external_stop_in_toggled(rig):
@@ -154,9 +151,8 @@ def test_external_stop_in_toggled(rig):
     assert m.external_stop() is True  # auto-stop fires
     assert spy.calls == ["start"]  # external_stop does NOT call on_stop; caller owns pipeline
     m.handle("down", "ctrl")
-    m.handle("down", "win")  # busy -> ignored
-    assert spy.calls == ["start"]
-    m.pipeline_done()
+    m.handle("down", "win")  # fresh chord while busy -> next take starts
+    assert spy.calls == ["start", "start"]
 
 
 def test_external_stop_noop_when_idle(rig):
@@ -354,6 +350,48 @@ def test_single_key_tap_to_toggle():
     assert spy.calls == ["start"] and m.is_recording()
     m.handle("down", "f9")           # tap again -> stop
     assert spy.calls == ["start", "stop"]
+
+
+def test_tap_during_pipeline_starts_next_take():
+    # While the last take is transcribing (BUSY), a fresh tap starts the next one
+    # instead of being swallowed — recording overlaps the pipeline.
+    m, spy, clock = _key_machine()
+    m.handle("down", "f9")
+    clock.advance(0.1)
+    m.handle("up", "f9")              # tap -> hands-free recording
+    m.handle("down", "f9")            # tap again -> stop, pipeline runs (BUSY)
+    assert spy.calls == ["start", "stop"]
+    m.handle("up", "f9")
+    m.handle("down", "f9")            # fresh press while BUSY -> next take starts
+    assert spy.calls == ["start", "stop", "start"]
+    assert m.is_recording()
+
+
+def test_holding_the_stopping_tap_does_not_restart():
+    # The tap that STOPS a recording must not restart one via OS key auto-repeat
+    # if the user holds it a beat too long.
+    m, spy, clock = _key_machine()
+    m.handle("down", "f9")
+    clock.advance(0.1)
+    m.handle("up", "f9")
+    m.handle("down", "f9")            # stop -> BUSY (key still held)
+    m.handle("down", "f9")            # auto-repeat
+    m.handle("down", "f9")            # auto-repeat
+    assert spy.calls == ["start", "stop"]
+    assert not m.is_recording()
+
+
+def test_force_start_allowed_while_pipeline_runs():
+    # Combo (non-single-key) hotkeys go through force_start; it too may begin the
+    # next take during BUSY.
+    m, spy, clock = _key_machine()
+    m.handle("down", "f9")
+    clock.advance(0.1)
+    m.handle("up", "f9")
+    m.handle("down", "f9")            # BUSY
+    m.handle("up", "f9")
+    assert m.force_start() is True
+    assert m.is_recording()
 
 
 def test_single_key_autorepeat_during_hold_is_noop():

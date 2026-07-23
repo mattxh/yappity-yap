@@ -73,6 +73,8 @@ expose their text it falls back to a safe timeout. Set `preserve_clipboard` to `
 `config.json` to instead leave the dictation on the clipboard. Every dictation is saved to
 `history.jsonl` (tray → Open history).
 
+- You don't have to wait for a dictation to finish transcribing — tap F9 again and start
+  speaking the next one; each pastes in the order you spoke.
 - Recording auto-stops after 5 minutes (configurable `max_recording_s`).
 - Recordings shorter than 0.3 s are ignored.
 

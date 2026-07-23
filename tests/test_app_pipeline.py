@@ -1,3 +1,4 @@
+import queue
 import types
 
 import pytest
@@ -5,6 +6,7 @@ import pytest
 from app import cleanup as cleanup_mod
 from app.__main__ import App, _shorten, _parse_words
 from app.hotkey import ChordMachine
+from app.pipeline import JobGate
 
 
 def _watchdog_app(recorder_active=False, starting=False):
@@ -14,6 +16,7 @@ def _watchdog_app(recorder_active=False, starting=False):
     app._gate = types.SimpleNamespace(is_active=lambda: False)
     app._cmd_recording = False
     app._starting = starting
+    app.jobs = queue.Queue()
     app.machine = ChordMachine(on_start=lambda: None, on_stop=lambda: None,
                                on_cancel=lambda: None, mods=("f9",))
     app.cmd_machine = None
@@ -52,6 +55,77 @@ def test_watchdog_recovers_genuinely_stranded_machine():
     app._watchdog_scan(stuck)
     app._watchdog_scan(stuck)                 # same wedge twice -> reset
     assert app.machine.is_idle()
+
+
+def _queue_app():
+    """Bare App for the overlapped-recording (queue-up) paths."""
+    app = object.__new__(App)
+    app.cfg = {"beeps": False, "max_recording_s": 300}
+    app._gate = JobGate()
+    app.jobs = queue.Queue()
+    app.machine = ChordMachine(on_start=lambda: None, on_stop=lambda: None,
+                               on_cancel=lambda: None, mods=("f9",))
+    app.recorder = types.SimpleNamespace(
+        stop=lambda: b"RIFFwav", start=lambda: None,
+        is_active=lambda: False, cancel=lambda: None)
+    app.overlay = types.SimpleNamespace(show=lambda *a, **k: None, hide=lambda: None)
+    app.set_tray_state = lambda s: None
+    app.notifier = types.SimpleNamespace(toast=lambda *a, **k: None)
+    app.t = lambda key, **k: key
+    app._cmd_recording = False
+    app._starting = False
+    return app
+
+
+def test_stop_enqueues_even_while_previous_job_in_flight(monkeypatch):
+    # The old gate check silently DROPPED a finished recording if the previous one
+    # was still transcribing; now it must queue behind it.
+    import app.__main__ as m
+    monkeypatch.setattr(m, "beep", lambda *a, **k: None)
+    app = _queue_app()
+    assert app._gate.try_begin() is True     # job 1 in flight
+    App._stop_and_enqueue(app)               # take 2 finishes while job 1 runs
+    assert app.jobs.qsize() == 1             # queued, not dropped
+
+
+def test_start_refused_when_a_take_is_already_queued(monkeypatch):
+    # Depth limit: one recording on top of one transcribing job — never deeper.
+    import app.__main__ as m
+    monkeypatch.setattr(m, "beep", lambda *a, **k: None)
+    app = _queue_app()
+    app.jobs.put(("transcribe", b"queued"))
+    started = []
+    app.recorder = types.SimpleNamespace(start=lambda: started.append(1))
+    app.machine.handle("down", "f9")         # machine went HELD, as the hook would
+    App._on_start(app)
+    assert started == []                     # mic never opened
+    assert app.machine.is_idle()             # machine freed for the next tap
+
+
+def test_start_refused_while_command_mode_records(monkeypatch):
+    import app.__main__ as m
+    monkeypatch.setattr(m, "beep", lambda *a, **k: None)
+    app = _queue_app()
+    app._cmd_recording = True
+    started = []
+    app.recorder = types.SimpleNamespace(start=lambda: started.append(1))
+    app.machine.handle("down", "f9")
+    App._on_start(app)
+    assert started == []
+    assert app.machine.is_idle()
+
+
+def test_finish_ui_keeps_overlay_while_next_take_records():
+    # Job 1 finishing must not hide the recording overlay of take 2.
+    app = _queue_app()
+    hidden = []
+    app.overlay = types.SimpleNamespace(hide=lambda: hidden.append(1))
+    app.machine.handle("down", "f9")         # take 2 recording now
+    App._finish_ui(app)
+    assert hidden == []
+    app.machine.reset()
+    App._finish_ui(app)                      # nothing recording -> normal hide
+    assert hidden == [1]
 
 
 def test_parse_words_splits_on_commas_and_newlines():
